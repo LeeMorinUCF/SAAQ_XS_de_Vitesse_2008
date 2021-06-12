@@ -1,0 +1,4 @@
+# Ignore data in Data folder:
+
+Data/*.csv
+Data/*.dta
