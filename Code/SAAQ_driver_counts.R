@@ -4,7 +4,7 @@
 # 
 # Construction of a series of numbers of drivers in sex and age categories
 # who were NOT awarded tickets.
-# Datasets is used for joining non-events to ticket events.
+# Dataset is used for joining non-events to ticket events.
 # 
 # 
 # 
@@ -28,13 +28,14 @@
 ################################################################################
 
 # Clear workspace.
-rm(list=ls(all=TRUE))
+# rm(list=ls(all=TRUE))
 
 # Load package for importing datasets in proprietary formats.
 # library(foreign)
 
 # Load data table package for quick selection on seq.
-# library(data.table)
+# It also includes dependencies for dealing with dates (i.e. lubridate).
+library(data.table)
 
 
 ################################################################################
@@ -42,17 +43,19 @@ rm(list=ls(all=TRUE))
 ################################################################################
 
 # Set working directory.
-# setwd('/home/ec2-user/saaq')
-setwd('~/Research/SAAQ/')
+drive_path <- 'C:/Users/le279259/OneDrive - University of Central Florida/Documents'
+git_path <- 'Research/SAAQ/SAAQspeeding/SAAQ_XS_de_Vitesse_2008'
+wd_path <- sprintf('%s/%s',drive_path, git_path)
+setwd(wd_path)
 
 # The original data are stored in 'SAAQdata/origData/'.
-dataInPath <- 'SAAQdata_full/'
+data_in_path <- 'Data'
 
 # The data of demerit point counts are stored in 'SAAQdata/seqData/'.
-dataOutPath <- 'SAAQspeeding/SAAQspeeding/'
+data_out_path <- 'Data'
 
-# Set version of output file.
-ptsVersion <- 1
+# Set name of output file.
+out_file_name <- 'saaq_no_tickets.csv'
 
 
 
@@ -64,7 +67,7 @@ ptsVersion <- 1
 # for each category as of June 1 of each year. 
 
 annual_file_name <- 'SAAQdrivers_annual.csv'
-annual_path_file_name <- sprintf('%s/%s', dataInPath, annual_file_name)
+annual_path_file_name <- sprintf('%s/%s', data_in_path, annual_file_name)
 annual <- read.csv(file = annual_path_file_name)
 
 colnames(annual)
@@ -75,8 +78,9 @@ sapply(annual, class)
 # Construct Daily Driver Counts
 ################################################################################
 
-# COnstruct a date series from dates in main dataset. 
+# Construct a date series from dates in main dataset. 
 
+# Data limits from dataset with tickets (events).
 # > min(saaq[, 'dinf'])
 # [1] "1998-01-01"
 # > max(saaq[, 'dinf'])
@@ -87,6 +91,7 @@ day_1 <- as.numeric(as.Date('1998-01-01'))
 day_T <- as.numeric(as.Date('2010-12-31'))
 
 date_list <- as.Date(seq(day_1, day_T), origin = as.Date('1970-01-01'))
+
 
 length(date_list)
 min(date_list)
@@ -100,7 +105,7 @@ age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
 num_rows <- length(date_list)*length(age_group_list)*2
 
 
-# Define columns as in saaq dataset. 
+# Define columns as in main saaq dataset of tickets: 
 # > colnames(saaq)
 # [1] "seq"     "sex"     "dob_yr"  "dob_mo"  "dob_day" "dinf"    "points" 
 # [8] "dcon"    "age"     "age_grp"
@@ -204,43 +209,55 @@ for (date_num in 1:length(date_list)) {
 }
 
 
-# Now do some tests to check. 
 
-# Check at some June 1 dates.
-no_tickets_df[no_tickets_df[, 'dinf'] == '2000-06-01', ]
-no_tickets_df[no_tickets_df[, 'dinf'] == '2000-06-30', ]
-no_tickets_df[no_tickets_df[, 'dinf'] == '2002-06-01', ]
-no_tickets_df[no_tickets_df[, 'dinf'] == '2002-06-30', ]
-no_tickets_df[no_tickets_df[, 'dinf'] == '2010-06-01', ]
+################################################################################
+# Validation
+################################################################################
 
 
-no_tickets_df[no_tickets_df[, 'dinf'] == '2010-05-31', ]
-
-no_tickets_df[no_tickets_df[, 'dinf'] == '2010-06-30', ]
-
-
-
-
-# Plot the age group counts over time. 
-sel_obsn <- no_tickets_df[, 'age_grp'] == '0-15' & 
-  no_tickets_df[, 'sex'] == 'F'
-sel_obsn <- no_tickets_df[, 'age_grp'] == '0-15' & 
-  no_tickets_df[, 'sex'] == 'M'
-sel_obsn <- no_tickets_df[, 'age_grp'] == '90-199' & 
-  no_tickets_df[, 'sex'] == 'M'
-
-# Plot a time series for this selection. 
-new_year_dates <- seq(sum(sel_obsn))[month(no_tickets_df[sel_obsn, 'dinf']) == 1 & 
-  mday(no_tickets_df[sel_obsn, 'dinf']) == 1]
-new_year_labels <- year(no_tickets_df[sel_obsn, 'dinf'][new_year_dates])
-
-# plot(no_tickets_df[, 'num'], 
-#      xaxt='n')
-plot(no_tickets_df[sel_obsn, 'num'],
-     xaxt='n')
-
-axis(1, at = new_year_dates, 
-     labels = new_year_labels)
+# # Now do some tests to verify accuracy. 
+# 
+# # Check at some June 1 dates.
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2000-06-01', ]
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2000-06-30', ]
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2002-06-01', ]
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2002-06-30', ]
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2010-06-01', ]
+# 
+# # Check two consecutive days. 
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2010-05-31', ]
+# 
+# no_tickets_df[no_tickets_df[, 'dinf'] == '2010-06-30', ]
+# 
+# 
+# 
+# 
+# # Plot the age group counts over time. 
+# # sel_obsn <- no_tickets_df[, 'age_grp'] == '0-15' & 
+# #   no_tickets_df[, 'sex'] == 'F'
+# # sel_obsn <- no_tickets_df[, 'age_grp'] == '0-15' & 
+# #   no_tickets_df[, 'sex'] == 'M'
+# # sel_obsn <- no_tickets_df[, 'age_grp'] == '20-24' &
+# #   no_tickets_df[, 'sex'] == 'F'
+# sel_obsn <- no_tickets_df[, 'age_grp'] == '20-24' &
+#   no_tickets_df[, 'sex'] == 'M'
+# # sel_obsn <- no_tickets_df[, 'age_grp'] == '90-199' & 
+# #   no_tickets_df[, 'sex'] == 'M'
+# # sel_obsn <- no_tickets_df[, 'age_grp'] == '90-199' &
+# #   no_tickets_df[, 'sex'] == 'F'
+# 
+# # Plot a time series for this selection. 
+# new_year_dates <- seq(sum(sel_obsn))[month(no_tickets_df[sel_obsn, 'dinf']) == 1 & 
+#   mday(no_tickets_df[sel_obsn, 'dinf']) == 1]
+# new_year_labels <- year(no_tickets_df[sel_obsn, 'dinf'][new_year_dates])
+# 
+# 
+# # Plot for the selected age group.
+# plot(no_tickets_df[sel_obsn, 'num'],
+#      xaxt = 'n')
+# 
+# axis(1, at = new_year_dates, 
+#      labels = new_year_labels)
 
 
 
@@ -252,9 +269,7 @@ axis(1, at = new_year_dates,
 # Output Daily Driver Counts
 ################################################################################
 
-out_file_name <- sprintf('saaq_no_tickets_%d.csv', ptsVersion)
-out_path_file_name <- sprintf('%s%s', dataInPath, out_file_name)
-# Yes, keep it in dataInPath since it is yet to be joined. 
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_file_name)
 write.csv(x = no_tickets_df, file = out_path_file_name, row.names = FALSE)
 
 
