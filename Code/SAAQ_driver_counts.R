@@ -27,11 +27,8 @@
 # Clearing Workspace and Declaring Packages
 ################################################################################
 
-# Clear workspace.
+# Clear workspace, if running interactively.
 # rm(list=ls(all=TRUE))
-
-# Load package for importing datasets in proprietary formats.
-# library(foreign)
 
 # Load data table package for quick selection on seq.
 # It also includes dependencies for dealing with dates (i.e. lubridate).
@@ -42,20 +39,21 @@ library(data.table)
 # Set parameters for file IO
 ################################################################################
 
-# Set working directory.
-drive_path <- 'C:/Users/le279259/OneDrive - University of Central Florida/Documents'
-git_path <- 'Research/SAAQ/SAAQspeeding/SAAQ_XS_de_Vitesse_2008'
-wd_path <- sprintf('%s/%s',drive_path, git_path)
-setwd(wd_path)
+# Set working directory, if running interactively.
+# drive_path <- 'C:/Users/le279259/OneDrive - University of Central Florida/Documents'
+# git_path <- 'Research/SAAQ/SAAQspeeding/SAAQ_XS_de_Vitesse_2008'
+# wd_path <- sprintf('%s/%s',drive_path, git_path)
+# setwd(wd_path)
 
-# The original data are stored in 'SAAQdata/origData/'.
+# The original data are stored in 'Data/'.
 data_in_path <- 'Data'
 
-# The data of demerit point counts are stored in 'SAAQdata/seqData/'.
+# The data of counts of licensed drivers are also stored in 'Data/'.
 data_out_path <- 'Data'
 
 # Set name of output file.
-out_file_name <- 'saaq_no_tickets.csv'
+# out_file_name <- 'saaq_no_tickets.csv'
+out_file_name <- 'SAAQ_drivers_daily.csv'
 
 
 
@@ -66,7 +64,7 @@ out_file_name <- 'saaq_no_tickets.csv'
 # Totals are based on the number of driver's licenses outstanding
 # for each category as of June 1 of each year. 
 
-annual_file_name <- 'SAAQdrivers_annual.csv'
+annual_file_name <- 'SAAQ_drivers_annual.csv'
 annual_path_file_name <- sprintf('%s/%s', data_in_path, annual_file_name)
 annual <- read.csv(file = annual_path_file_name)
 
@@ -258,8 +256,6 @@ for (date_num in 1:length(date_list)) {
 # 
 # axis(1, at = new_year_dates, 
 #      labels = new_year_labels)
-
-
 
 
 # Note the kinks on June 1, every year. 
