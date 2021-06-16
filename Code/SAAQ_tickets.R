@@ -63,6 +63,7 @@ library(data.table)
 # The original data are stored in 'Data/'.
 data_in_path <- 'Data'
 
+
 # The data of counts of licensed drivers are also stored in 'Data/'.
 data_out_path <- 'Data'
 
@@ -137,7 +138,7 @@ april_fools_2008 <- '2008-04-01'
 ################################################################################
 
 # Load Licensee Data
-fileName <- sprintf('%s%s.dta', dataInPath, 'seq')
+fileName <- sprintf('%s/%s.dta', data_in_path, 'seq')
 drivers <- read.dta(fileName)
 
 head(drivers)
@@ -151,7 +152,7 @@ sum(drivers[, 'seq'] != seq(nrow(drivers)))
 
 # Initialize dataset with the first year of violations.
 yr <- yearList[1]
-fileName <- sprintf('%s%s%d.dta', dataInPath, 'cs', yr)
+fileName <- sprintf('%s/%s%d.dta', data_in_path, 'cs', yr)
 tickets <- read.dta(fileName)
 
 # Reorder by date (one year at a time).
@@ -191,7 +192,7 @@ for (yr in yearList[2:length(yearList)]) {
   print(sprintf('Now loading data for year %d', yr))
 
   # Load the next set of violations for this yr.
-  fileName <- sprintf('%s%s%d.dta', dataInPath, 'cs', yr)
+  fileName <- sprintf('%s/%s%d.dta', data_in_path, 'cs', yr)
   tickets <- read.dta(fileName)
 
 
@@ -364,7 +365,7 @@ summary(saaq[saaq[, 'age_grp'] == '90-199', 'age'])
 
 # Current version has separate tag for aggregated file with
 # new variable for past points indicator.
-out_path_file_name <- sprintf('%s%s', data_out_path, out_file_name)
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_file_name)
 write.csv(x = saaq, file = out_path_file_name, row.names = FALSE)
 
 

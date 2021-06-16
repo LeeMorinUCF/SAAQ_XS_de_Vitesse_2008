@@ -48,6 +48,10 @@ library(data.table)
 # The original data are stored in 'Data/'.
 data_in_path <- 'Data'
 
+# The file of annual counts of drivers from SAAQ Website.
+annual_file_name <- 'SAAQ_drivers_annual.csv'
+
+
 # The data of counts of licensed drivers are also stored in 'Data/'.
 data_out_path <- 'Data'
 
@@ -64,7 +68,6 @@ out_file_name <- 'SAAQ_drivers_daily.csv'
 # Totals are based on the number of driver's licenses outstanding
 # for each category as of June 1 of each year. 
 
-annual_file_name <- 'SAAQ_drivers_annual.csv'
 annual_path_file_name <- sprintf('%s/%s', data_in_path, annual_file_name)
 annual <- read.csv(file = annual_path_file_name)
 

@@ -67,7 +67,7 @@ data_in_path <- 'Data'
 data_out_path <- 'Data'
 
 # Set name of file with records of tickets. 
-tickets_file_name <- '.csv'
+tickets_file_name <- 'saaq_tickets.csv'
 
 # Set name of file with counts of drivers without tickets.
 # Driver population includes drivers with no past tickets or current points.
@@ -77,7 +77,7 @@ drivers_file_name <- 'SAAQ_drivers_daily.csv'
 
 # Set name of output file for point totals.
 # pts_out_file_name <- 'saaq_pts.csv'
-pts_bal_file_name <- 'saaq_pts_balances.csv'
+pts_bal_file_name <- 'saaq_point_balances.csv'
 
 # Set name of output file for aggregated dataset.
 # agg_out_file_name <- 'saaq_agg.csv'

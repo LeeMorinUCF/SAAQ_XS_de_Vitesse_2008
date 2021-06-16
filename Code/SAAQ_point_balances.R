@@ -44,7 +44,7 @@
 # rm(list=ls(all=TRUE))
 
 # Load package for importing datasets in proprietary formats.
-library(foreign)
+# library(foreign)
 
 # Load data table package for quick selection on seq.
 library(data.table)
@@ -63,19 +63,23 @@ library(data.table)
 # The original data are stored in 'Data/'.
 data_in_path <- 'Data'
 
+# Set name of file with records of tickets. 
+tickets_file_name <- 'saaq_tickets.csv'
+
+
 # The data of counts of licensed drivers are also stored in 'Data/'.
 data_out_path <- 'Data'
 
 # Set name of file with counts of drivers without tickets.
 # Driver population includes drivers with no past tickets or current points.
-no_tickets_file_name <- 'saaq_no_tickets.csv'
+# no_tickets_file_name <- 'saaq_no_tickets.csv'
 
 
 # Set name of output file for point totals.
-pts_out_file_name <- 'saaq_pts.csv'
+out_file_name <- 'saaq_point_balances.csv'
 
 # Set name of output file for aggregated dataset.
-agg_out_file_name <- 'saaq_agg.csv'
+# agg_out_file_name <- 'saaq_agg.csv'
 
 
 
@@ -86,10 +90,11 @@ agg_out_file_name <- 'saaq_agg.csv'
 
 
 
-in_path_file_name <- sprintf('%s%s', data_in_path, tickets_file_name)
-saaq_dt <- data.table(read.csv(file = in_path_file_name))
+in_path_file_name <- sprintf('%s/%s', data_in_path, tickets_file_name)
+# saaq_dt <- data.table(read.csv(file = in_path_file_name))
+saaq_dt <- fread(file = in_path_file_name)
 
-colnames(saaq)
+# colnames(saaq)
 colnames(saaq_dt)
 
 
@@ -129,14 +134,27 @@ max(date_list)
 #--------------------------------------------------------------------------------
 
 # Create columns for the sex and age combinations.
-# But wait! There are many point categories as well.
+# and point categories as well.
 
-table(saaq[, 'sex'], saaq[, 'age_grp'], useNA = 'ifany')
+# colnames(saaq)
+colnames(saaq_dt)
+summary(saaq_dt)
 
 
-# Ok. For real. Add a new column to the event dataset.
-colnames(saaq)
+# Sex and age variables listed as character: change to factors.
+saaq_dt[, sex := factor(sex, levels = c('M', 'F'))]
 
+age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
+                    '55-64', '65-74', '75-84', '85-89', '90-199')
+saaq_dt[, age_grp := factor(age_grp, levels = age_group_list)]
+
+
+table(saaq_dt[, 'sex'], useNA = 'ifany')
+table(saaq_dt[, 'age_grp'], useNA = 'ifany')
+
+
+# table(saaq[, 'sex'], saaq[, 'age_grp'], useNA = 'ifany')
+# table(saaq_dt[, 'sex'], saaq_dt[, 'age_grp'], useNA = 'ifany')
 
 
 #--------------------------------------------------------------------------------
@@ -146,13 +164,15 @@ colnames(saaq)
 # Note that these are historic totals with no expiry date.
 
 # Sort by date and seq.
-saaq <- saaq[order(saaq$seq, saaq$dinf), ]
-head(saaq, 10)
+# saaq <- saaq[order(saaq$seq, saaq$dinf), ]
+# head(saaq, 10)
+saaq_dt <- saaq_dt[order(seq, dinf), ]
+head(saaq_dt, 10)
 
 # Create a data table to calculate cumulative points balances.
 # saaq_dt <- data.table(saaq)
 # Join with leading dataset with negative points balances.
-
+# Already read in as a data table.
 
 # Stack two copies of point events.
 # One is the original, when points are added.
@@ -160,17 +180,31 @@ head(saaq, 10)
 
 
 # Calculate cumulative points total by driver.
-saaq_dt <- data.table(saaq)
+# saaq_dt <- data.table(saaq)
+saaq_dt_2 <- copy(saaq_dt)
+# By default, data.table makes a shallow copy. 
+# We need a deep copy, since we truly want a duplicate table
+# but want to lead the dates 2 years and reverse the demerit points.
+
+
 # Translate into the drops in points two years later.
-saaq_dt[, dinf := as.Date(dinf + 730)]
-saaq_dt[, age := age + 2]
-saaq_dt[, points := - points]
+saaq_dt_2[, dinf := as.Date(dinf + 730)]
+saaq_dt[, dinf := as.Date(dinf)] # Change original date to match class.
+saaq_dt_2[, age := age + 2]
+saaq_dt_2[, points := - points]
+head(saaq_dt_2, 10)
 head(saaq_dt, 10)
+
+
 # Append the original observations, then sort.
-saaq_dt <- rbind(saaq_dt, data.table(saaq))
-saaq_dt <- saaq_dt[order(saaq_dt$seq,
-                         saaq_dt$dinf,
-                         saaq_dt$points)]
+saaq_dt <- rbind(saaq_dt_2, saaq_dt)
+
+# saaq_dt <- saaq_dt[order(saaq_dt$seq,
+#                          saaq_dt$dinf,
+#                          saaq_dt$points)]
+saaq_dt <- saaq_dt[order(seq,
+                         dinf,
+                         points)]
 head(saaq_dt, 10)
 
 
@@ -185,8 +219,9 @@ saaq_dt <- saaq_dt[points > 0, ]
 
 
 # Then compare with saaq to verify accuracy.
-summary(saaq)
+# summary(saaq)
 summary(saaq_dt)
+summary(saaq_dt_2)
 
 
 
@@ -603,7 +638,7 @@ curr_pts_grp_list <- c(as.character(seq(0, 10)), '11-20', '21-30', '30-150')
 # Back to in path.
 # data_count_path <- 'SAAQdata_full/'
 # in_path_file_name <- sprintf('%s%s', data_count_path, in_file_name)
-in_path_file_name <- sprintf('%s%s', data_count_path, pts_out_file_name)
+in_path_file_name <- sprintf('%s/%s', data_count_path, pts_out_file_name)
 saaq_past_counts <- data.table(read.csv(file = in_path_file_name))
 
 # Adjust dataset to the original state.
@@ -869,7 +904,7 @@ legend(x = 'topleft',
 
 # Current version has separate tag for aggregated file with
 # new variable for past points indicator.
-out_path_file_name <- sprintf('%s%s', data_out_path, agg_out_file_name)
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_file_name)
 write.csv(x = saaq_past_counts_sum, file = out_path_file_name, row.names = FALSE)
 
 
