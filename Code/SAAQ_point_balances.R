@@ -144,9 +144,34 @@ summary(saaq_dt)
 # Sex and age variables listed as character: change to factors.
 saaq_dt[, sex := factor(sex, levels = c('M', 'F'))]
 
+
+
 age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
                     '55-64', '65-74', '75-84', '85-89', '90-199')
 age_cut_points <- c(0, 15.5, 19.5, seq(24.5, 84.5, by = 10), 89.5, 199)
+
+
+#--------------------------------------------------------------------------------
+# To test, keep ages constant to limit state space. 
+summary(saaq_dt[, age])
+summary(saaq_dt[, sqrt(var(age)), by = c('seq')])
+saaq_dt[, age := round(mean(age)), by = c('seq')]
+summary(saaq_dt[, age])
+summary(saaq_dt[, sqrt(var(age)), by = c('seq')])
+
+# Now redefine age categories.
+saaq_dt[, 'age_grp'] <- cut(saaq_dt[, age], breaks = age_cut_points,
+                         labels = age_group_list)
+
+# Verify definitions of age categories.
+summary(saaq_dt[age_grp == '0-15', 'age'])
+
+summary(saaq_dt[age_grp == '55-64', 'age'])
+
+summary(saaq_dt[age_grp == '90-199', 'age'])
+
+#--------------------------------------------------------------------------------
+
 
 saaq_dt[, age_grp := factor(age_grp, levels = age_group_list)]
 
@@ -542,7 +567,7 @@ head(saaq_pts_chgs, 20)
 saaq_pts_chgs <- saaq_pts_chgs[order(date, sex, age_grp, past_active, 
                                      prev_pts_grp, curr_pts_grp)]
 
-
+summary(saaq_pts_chgs)
 
 #--------------------------------------------------------------------------------
 # Daily categorization of point total balances across age and sex categories
@@ -617,22 +642,23 @@ for (date_num in date_num_list) {
   point_changes <- point_changes[curr_pts_grp != prev_pts_grp]
   
   # Deduct from count of drivers in the previous categories.
-  if (date_num != date_num_list[1]) {
-    
-    deduct_counts <- point_changes[, c('sex', 'age_grp', 'past_active', 
-                                       'prev_pts_grp', 'N')]
-    
-    # Pad list of changes with zero entries.
-    deduct_counts <- rbind(deduct_counts, saaq_zero_prev)
-    
-    # Aggregate and sort.
-    deduct_counts <- deduct_counts[, N := sum(N), 
-                                   by = c('sex', 'age_grp', 'past_active', 
-                                          'prev_pts_grp')]
-    deduct_counts <- unique(deduct_counts)
-    deduct_counts <- deduct_counts[order(sex, age_grp, past_active, prev_pts_grp)]
-    
-    # Now this list should be in the same order as the date selection.
+  
+  deduct_counts <- point_changes[, c('sex', 'age_grp', 'past_active', 
+                                     'prev_pts_grp', 'N')]
+  
+  # Pad list of changes with zero entries.
+  deduct_counts <- rbind(deduct_counts, saaq_zero_prev)
+  
+  # Aggregate and sort.
+  deduct_counts <- deduct_counts[, N := sum(N), 
+                                 by = c('sex', 'age_grp', 'past_active', 
+                                        'prev_pts_grp')]
+  deduct_counts <- unique(deduct_counts)
+  deduct_counts <- deduct_counts[order(sex, age_grp, past_active, prev_pts_grp)]
+  
+  # Now this list should be in the same order as the date selection.
+  
+  if (date_num > date_num_list[1] | beg_date_num == 2) {
     saaq_past_counts[date == date_curr, 'N'] <- 
       saaq_past_counts[date == date_prev, 'N'] - 
       deduct_counts[, 'N']
@@ -661,8 +687,14 @@ for (date_num in date_num_list) {
 
 }
 
+
+
+# Evaluate the counts.
 summary(saaq_past_counts[date >= date_list[beg_date_num] & 
                            date <= date_list[end_date_num], ])
+# Notice that this does not include the drivers with no tickets.
+# Negative counts indicate drivers who have swapped in by getting a ticket.
+
 saaq_past_counts[date == date_curr, ]
 head(saaq_past_counts[date == date_curr, ], 100)
 
@@ -670,6 +702,27 @@ head(saaq_past_counts[date == date_curr, ], 100)
 summary(saaq_past_counts[date < date_list[beg_date_num], ])
 summary(saaq_past_counts[date > date_list[end_date_num], ])
 
+
+# Check counts of drivers by point balances.
+table(saaq_past_counts[, curr_pts_grp])
+summary(saaq_past_counts[curr_pts_grp == 0, N])
+summary(saaq_past_counts[curr_pts_grp == 1, N])
+summary(saaq_past_counts[curr_pts_grp == 2, N])
+summary(saaq_past_counts[curr_pts_grp == 3, N])
+summary(saaq_past_counts[curr_pts_grp == 4, N])
+summary(saaq_past_counts[curr_pts_grp == 5, N])
+summary(saaq_past_counts[curr_pts_grp == 6, N])
+summary(saaq_past_counts[curr_pts_grp == 7, N])
+summary(saaq_past_counts[curr_pts_grp == 8, N])
+summary(saaq_past_counts[curr_pts_grp == 9, N])
+summary(saaq_past_counts[curr_pts_grp == 10, N])
+summary(saaq_past_counts[curr_pts_grp == '11-20', N])
+summary(saaq_past_counts[curr_pts_grp == '21-30', N])
+summary(saaq_past_counts[curr_pts_grp == '30-150', N])
+
+
+
+# 
 
 
 ################################################################################

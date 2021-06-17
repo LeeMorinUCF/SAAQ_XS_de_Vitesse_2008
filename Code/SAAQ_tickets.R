@@ -235,6 +235,10 @@ tickets <- NULL
 
 # Age in years by date of infraction.
 saaq[, 'age'] <- as.integer(substr(saaq[, 'dinf'], 1, 4)) - (1900 + saaq[, 'dob_yr'])
+# Redefine for fixed age category.
+# Define age as age at time of policy change.
+saaq[, 'age'] <- 2008 - (1900 + saaq[, 'dob_yr'])
+
 
 summary(saaq[, 'age'])
 sum(saaq[, 'age'] < 10)
