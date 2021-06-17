@@ -585,10 +585,13 @@ colnames(saaq_zero_prev)[4] <- 'prev_pts_grp'
 # The range 2004-2010 is sufficient for a dataset covering
 # a two-year window around 2008 and two years of leading data 
 # for initial points balances.
-beg_date <- '2004-01-01'
+# beg_date <- '2004-01-01'
+# Now that it is efficient, we can start from the beginning, 
+# leaving one day for the lagged counts.
+beg_date <- date_list[2]
 beg_date_num <- which(date_list == beg_date)
-end_date <- '2010-12-31'
 # end_date <- '2004-12-31' # Test with 1-year sample.
+end_date <- '2010-12-31'
 end_date_num <- which(date_list == end_date)
 # Note that this leaves many dates at zero, outside of the range. 
 date_num_list <- beg_date_num:end_date_num
@@ -652,14 +655,22 @@ for (date_num in date_num_list) {
   
   # Now this list should be in the same order as the date selection.
   saaq_past_counts[date == date_curr, 'N'] <- 
-    saaq_past_counts[date == date_prev, 'N'] + 
+    saaq_past_counts[date == date_curr, 'N'] + 
     add_counts[, 'N']
   
 
 }
-  
 
+summary(saaq_past_counts[date >= date_list[beg_date_num] & 
+                           date <= date_list[end_date_num], ])
 saaq_past_counts[date == date_curr, ]
+head(saaq_past_counts[date == date_curr, ], 100)
+
+# Note that no drivers are recorded outside the date range.
+summary(saaq_past_counts[date < date_list[beg_date_num], ])
+summary(saaq_past_counts[date > date_list[end_date_num], ])
+
+
 
 ################################################################################
 ################################################################################
@@ -667,118 +678,118 @@ saaq_past_counts[date == date_curr, ]
 ################################################################################
 ################################################################################
 
-#--------------------------------------------------------------------------------
-# Daily categorization of point total balances across age and sex categories
-#--------------------------------------------------------------------------------
-
-# This creates a time series of counts by point-age-sex categories.
-
-
-# Check maximum number of rows for each day.
-# nrow(expand.grid(sex = c('M', 'F'),
-#                  age_grp = age_group_list,
-#                  curr_pts_grp = curr_pts_grp_list))
-
-
-
-# Start with a dataset of all possible permutations of the categories, each day.
-saaq_past_counts <- data.table(expand.grid(date = date_list,
-                                           sex = c('M', 'F'),
-                                           age_grp = age_group_list,
-                                           curr_pts_grp = curr_pts_grp_list))
-# Only a million rows or so.
-# Initialize with zeros for the combinations that didn't happen.
-saaq_past_counts[, N := -99L]
-last_row <- 0
-
-# Initialize a data table to store the counts.
-# saaq_past_counts <- NULL
-past_counts <- NULL
-
-# Set date range.
-# The range 2004-2010 is sufficient for a dataset covering
-# a two-year window around 2008 and two years of leading data 
-# for initial points balances.
-beg_date <- '2004-01-01'
-beg_date_num <- which(date_list == beg_date)
-end_date <- '2010-12-31'
-# end_date <- '2004-12-31' #Test with 1-year sample.
-end_date_num <- which(date_list == end_date)
-
-# Loop on dates and calculate the totals.
-# date_num <- 2
-# date_num_list <- 2:length(date_list)
-# date_num_list <- 2:100
-date_num_list <- beg_date_num:end_date_num
-
-
-
-
-for (date_num in date_num_list) {
-
-  # Select up to previous date.
-  date_count <- date_list[date_num]
-  date_last <- date_list[date_num - 1]
-
-  # Print progress report.
-  if (TRUE | (wday(date_count) == 1)) {
-    print(sprintf('Now tabulating for date %s.', as.character(date_count)))
-  }
-
-  # Each month, pull a subset of the data for easier daily pulls.
-  if (date_num == date_num_list[1] | mday(date_count) == 1) {
-
-    print(sprintf('Resetting subset of data for date %s...', as.character(date_count)))
-
-    saaq_past_pts_sub <- saaq_past_pts[year(dinf) == year(date_count) &
-                                         month(dinf) == month(date_count) |
-                                         year(dinf) == year(date_last) &
-                                         month(dinf) == month(date_last),
-                                       c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')]
-
-    print(sprintf('Finished resetting subset of data for date %s.', as.character(date_count)))
-
-  }
-
-  # Obtain most recent point blance for each driver (those who got a ticket).
-  # Keep the most recent and append any new observations.
-  # past_counts <- rbind(past_counts,
-  #                      saaq_past_pts[dinf == date_last,
-  #                                    c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')])
-  # Pull from subset for efficiency.
-  past_counts <- rbind(past_counts[,
-                                   c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')],
-                       saaq_past_pts_sub[dinf == date_last, ])
-
-
-  # Obtain the last date for each driver.
-  past_counts[, most_recent_date := max(dinf), by = seq]
-  # Obtain data from only the last date for each driver.
-  # past_counts <- past_counts[dinf == most_recent_date,
-  #                            c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')]
-  past_counts <- past_counts[dinf == most_recent_date, ] # All columns included.
-  # This will drop any stale observations that were updated.
-
-
-  # Tabulate counts in each category.
-  past_counts_tab <- past_counts[, .N, by = c('sex', 'age_grp', 'curr_pts_grp')]
-
-  # Append the current date.
-  past_counts_tab[, date:= date_count]
-
-
-  # Append the new totals to the data table of counts.
-  # saaq_past_counts <- rbind(saaq_past_counts, past_counts_tab)
-  # Appending becomes slower as the table grows.
-  # Better to select particular rows.
-  saaq_past_counts[(last_row + 1) :
-                     (last_row + nrow(past_counts_tab)), ] <-
-    past_counts_tab[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'N')]
-
-
-  # Update for last row populated.
-  last_row <- last_row + nrow(past_counts_tab)
-}
+# #--------------------------------------------------------------------------------
+# # Daily categorization of point total balances across age and sex categories
+# #--------------------------------------------------------------------------------
+# 
+# # This creates a time series of counts by point-age-sex categories.
+# 
+# 
+# # Check maximum number of rows for each day.
+# # nrow(expand.grid(sex = c('M', 'F'),
+# #                  age_grp = age_group_list,
+# #                  curr_pts_grp = curr_pts_grp_list))
+# 
+# 
+# 
+# # Start with a dataset of all possible permutations of the categories, each day.
+# saaq_past_counts <- data.table(expand.grid(date = date_list,
+#                                            sex = c('M', 'F'),
+#                                            age_grp = age_group_list,
+#                                            curr_pts_grp = curr_pts_grp_list))
+# # Only a million rows or so.
+# # Initialize with zeros for the combinations that didn't happen.
+# saaq_past_counts[, N := -99L]
+# last_row <- 0
+# 
+# # Initialize a data table to store the counts.
+# # saaq_past_counts <- NULL
+# past_counts <- NULL
+# 
+# # Set date range.
+# # The range 2004-2010 is sufficient for a dataset covering
+# # a two-year window around 2008 and two years of leading data 
+# # for initial points balances.
+# beg_date <- '2004-01-01'
+# beg_date_num <- which(date_list == beg_date)
+# end_date <- '2010-12-31'
+# # end_date <- '2004-12-31' #Test with 1-year sample.
+# end_date_num <- which(date_list == end_date)
+# 
+# # Loop on dates and calculate the totals.
+# # date_num <- 2
+# # date_num_list <- 2:length(date_list)
+# # date_num_list <- 2:100
+# date_num_list <- beg_date_num:end_date_num
+# 
+# 
+# 
+# 
+# for (date_num in date_num_list) {
+# 
+#   # Select up to previous date.
+#   date_count <- date_list[date_num]
+#   date_last <- date_list[date_num - 1]
+# 
+#   # Print progress report.
+#   if (TRUE | (wday(date_count) == 1)) {
+#     print(sprintf('Now tabulating for date %s.', as.character(date_count)))
+#   }
+# 
+#   # Each month, pull a subset of the data for easier daily pulls.
+#   if (date_num == date_num_list[1] | mday(date_count) == 1) {
+# 
+#     print(sprintf('Resetting subset of data for date %s...', as.character(date_count)))
+# 
+#     saaq_past_pts_sub <- saaq_past_pts[year(dinf) == year(date_count) &
+#                                          month(dinf) == month(date_count) |
+#                                          year(dinf) == year(date_last) &
+#                                          month(dinf) == month(date_last),
+#                                        c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')]
+# 
+#     print(sprintf('Finished resetting subset of data for date %s.', as.character(date_count)))
+# 
+#   }
+# 
+#   # Obtain most recent point blance for each driver (those who got a ticket).
+#   # Keep the most recent and append any new observations.
+#   # past_counts <- rbind(past_counts,
+#   #                      saaq_past_pts[dinf == date_last,
+#   #                                    c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')])
+#   # Pull from subset for efficiency.
+#   past_counts <- rbind(past_counts[,
+#                                    c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')],
+#                        saaq_past_pts_sub[dinf == date_last, ])
+# 
+# 
+#   # Obtain the last date for each driver.
+#   past_counts[, most_recent_date := max(dinf), by = seq]
+#   # Obtain data from only the last date for each driver.
+#   # past_counts <- past_counts[dinf == most_recent_date,
+#   #                            c('dinf', 'seq', 'sex', 'age_grp', 'curr_pts_grp')]
+#   past_counts <- past_counts[dinf == most_recent_date, ] # All columns included.
+#   # This will drop any stale observations that were updated.
+# 
+# 
+#   # Tabulate counts in each category.
+#   past_counts_tab <- past_counts[, .N, by = c('sex', 'age_grp', 'curr_pts_grp')]
+# 
+#   # Append the current date.
+#   past_counts_tab[, date:= date_count]
+# 
+# 
+#   # Append the new totals to the data table of counts.
+#   # saaq_past_counts <- rbind(saaq_past_counts, past_counts_tab)
+#   # Appending becomes slower as the table grows.
+#   # Better to select particular rows.
+#   saaq_past_counts[(last_row + 1) :
+#                      (last_row + nrow(past_counts_tab)), ] <-
+#     past_counts_tab[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'N')]
+# 
+# 
+#   # Update for last row populated.
+#   last_row <- last_row + nrow(past_counts_tab)
+# }
 
 ################################################################################
 ################################################################################
@@ -837,19 +848,24 @@ for (date_num in date_num_list) {
 # saaq_past_counts[, date := as.Date(date)]
 
 
-# Read a past version of this dataset.
-check_file_name <- 'saaq_past_counts_temp_2_1998_2010_v4.csv'
-in_path_file_name <- sprintf('%s/%s', data_in_path, check_file_name)
-saaq_past_counts_check <- fread(file = in_path_file_name)
+# # Read a past version of this dataset.
+# check_file_name <- 'saaq_past_counts_temp_2_1998_2010_v4.csv'
+# in_path_file_name <- sprintf('%s/%s', data_in_path, check_file_name)
+# saaq_past_counts_check <- fread(file = in_path_file_name)
+# 
+# # Compare with saaq_past_counts calculated here. 
+# colnames(saaq_past_counts)
+# colnames(saaq_past_counts_check)
+# 
+# # Zeros replaced with -99L in previous version.
+# saaq_past_counts_check[N == -99, N := 0]
+# 
+# summary(saaq_past_counts)
+# summary(saaq_past_counts_check)
 
-# Compare with saaq_past_counts calculated here. 
-colnames(saaq_past_counts)
-colnames(saaq_past_counts_check)
-
-summary(saaq_past_counts)
-summary(saaq_past_counts_check)
-
-
+# Seems as though past version was over=counting.
+# That might solve the problem with the apparent excess of 
+# tickets awarded to young males.
 
 
 ################################################################################
@@ -860,83 +876,92 @@ summary(saaq_past_counts_check)
 
 
 
-# Append rows with zeros to make size predictable.
+################################################################################
+################################################################################
+# Not needed with revised calculation.
+################################################################################
+################################################################################
 
-# Previous version without past_active:
+
+# # Append rows with zeros to make size predictable.
+# 
+# # Previous version without past_active:
+# # saaq_past_zero <- data.table(expand.grid(date = date_list,
+# #                                          sex = c('M', 'F'),
+# #                                          age_grp = age_group_list,
+# #                                          curr_pts_grp = curr_pts_grp_list))
+# 
+# # Later version with past_active:
 # saaq_past_zero <- data.table(expand.grid(date = date_list,
 #                                          sex = c('M', 'F'),
 #                                          age_grp = age_group_list,
-#                                          curr_pts_grp = curr_pts_grp_list))
-
-# Later version with past_active:
-saaq_past_zero <- data.table(expand.grid(date = date_list,
-                                         sex = c('M', 'F'),
-                                         age_grp = age_group_list,
-                                         curr_pts_grp = curr_pts_grp_list,
-                                         past_active = c(FALSE, TRUE)))
-
-
-# Only a million rows or so.
-# Or maybe three million rows or so.
-# Initialize with zeros for the combinations that didn't happen.
-saaq_past_zero[, N := 0L]
-
-# Verify that columns match.
-colnames(saaq_past_counts)
-colnames(saaq_past_zero)
-
-# Append these blank rows, dropping unpopulated rows.
-saaq_past_counts <- rbind(saaq_past_counts[N >= 0, ], saaq_past_zero)
-
-#--------------------------------------------------
-# First version without past active.
-
+#                                          curr_pts_grp = curr_pts_grp_list,
+#                                          past_active = c(FALSE, TRUE)))
+# 
+# 
+# # Only a million rows or so.
+# # Or maybe three million rows or so.
+# # Initialize with zeros for the combinations that didn't happen.
+# saaq_past_zero[, N := 0L]
+# 
+# # Verify that columns match.
+# colnames(saaq_past_counts)
+# colnames(saaq_past_zero)
+# 
+# # Append these blank rows, dropping unpopulated rows.
+# saaq_past_counts <- rbind(saaq_past_counts[N >= 0, ], saaq_past_zero)
+# 
+# #--------------------------------------------------
+# # First version without past active.
+# 
+# # # Sum again to square off points categories.
+# # saaq_past_counts[, num := sum(N), by = c('date', 'sex', 'age_grp', 'curr_pts_grp')]
+# # # Drop duplicate point values.
+# # saaq_past_counts_sum <- unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'num')])
+# # # Sort in same order.
+# # saaq_past_counts_sum <- saaq_past_counts_sum[order(date, sex, age_grp, curr_pts_grp), ]
+# 
+# 
+# #--------------------------------------------------
+# # Later version with past active.
+# 
 # # Sum again to square off points categories.
-# saaq_past_counts[, num := sum(N), by = c('date', 'sex', 'age_grp', 'curr_pts_grp')]
+# saaq_past_counts[, num := sum(N), by = c('date', 'sex', 'age_grp', 'curr_pts_grp', 'past_active')]
 # # Drop duplicate point values.
-# saaq_past_counts_sum <- unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'num')])
+# saaq_past_counts_sum <- unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'past_active', 'num')])
 # # Sort in same order.
-# saaq_past_counts_sum <- saaq_past_counts_sum[order(date, sex, age_grp, curr_pts_grp), ]
+# saaq_past_counts_sum <- saaq_past_counts_sum[order(date, sex, age_grp, curr_pts_grp, past_active), ]
+# 
+# #--------------------------------------------------
+# 
+# # Result should have same number of rows as saaq_past_zero.
+# print('Checking that rows match:')
+# nrow(saaq_past_zero)
+# nrow(saaq_past_counts) # Includes other combinations.
+# nrow(saaq_past_counts_sum)
+# 
+# # First version without past active.
+# # nrow(unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp')]))
+# # Later version with past active.
+# nrow(unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'past_active')]))
+# 
+# summary(saaq_past_counts)
+# summary(saaq_past_counts_sum)
+# 
+# 
+# # Data checks.
+# saaq_past_counts_sum[date == as.Date('1998-01-03'), sum(num)]
+# saaq_dt[dinf == as.Date('1998-01-01'), sum(points > 0)]
+# saaq_past_counts_sum[date == as.Date('2010-12-31') &
+#                        curr_pts_grp != 0, sum(num)]
+# saaq_dt[dinf >= as.Date('2009-01-01') &
+#           dinf <= as.Date('2010-12-31'), .N]
+# # Close but ok since some drivers get duplicates.
+# saaq_past_counts_sum[date == as.Date('2010-12-31'), sum(num)]
+# saaq_past_counts_sum[, sum(num)]/length(date_list)
+# # Figures appear plausible.
 
 
-#--------------------------------------------------
-# Later version with past active.
-
-# Sum again to square off points categories.
-saaq_past_counts[, num := sum(N), by = c('date', 'sex', 'age_grp', 'curr_pts_grp', 'past_active')]
-# Drop duplicate point values.
-saaq_past_counts_sum <- unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'past_active', 'num')])
-# Sort in same order.
-saaq_past_counts_sum <- saaq_past_counts_sum[order(date, sex, age_grp, curr_pts_grp, past_active), ]
-
-#--------------------------------------------------
-
-# Result should have same number of rows as saaq_past_zero.
-print('Checking that rows match:')
-nrow(saaq_past_zero)
-nrow(saaq_past_counts) # Includes other combinations.
-nrow(saaq_past_counts_sum)
-
-# First version without past active.
-# nrow(unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp')]))
-# Later version with past active.
-nrow(unique(saaq_past_counts[, c('date', 'sex', 'age_grp', 'curr_pts_grp', 'past_active')]))
-
-summary(saaq_past_counts)
-summary(saaq_past_counts_sum)
-
-
-# Data checks.
-saaq_past_counts_sum[date == as.Date('1998-01-03'), sum(num)]
-saaq_dt[dinf == as.Date('1998-01-01'), sum(points > 0)]
-saaq_past_counts_sum[date == as.Date('2010-12-31') &
-                       curr_pts_grp != 0, sum(num)]
-saaq_dt[dinf >= as.Date('2009-01-01') &
-          dinf <= as.Date('2010-12-31'), .N]
-# Close but ok since some drivers get duplicates.
-saaq_past_counts_sum[date == as.Date('2010-12-31'), sum(num)]
-saaq_past_counts_sum[, sum(num)]/length(date_list)
-# Figures appear plausible.
 
 #--------------------------------------------------------------------------------
 # Plot evolution of population over time.
@@ -944,20 +969,30 @@ saaq_past_counts_sum[, sum(num)]/length(date_list)
 
 
 # Plot a time series of counts.
-plot(saaq_past_counts_sum[, sum(num), by = c('date')])
+# plot(saaq_past_counts_sum[, sum(num), by = c('date')])
+plot(saaq_past_counts[, sum(N), by = c('date')])
 # Counts up to number of drivers (approximately),
 # because every driver has had an event by the end of the dataset.
 
 # Plot for point groups.
-table(saaq_past_counts_sum[, curr_pts_grp])
-plot(saaq_past_counts_sum[curr_pts_grp == 0, sum(num), by = c('date')])
-plot(saaq_past_counts_sum[curr_pts_grp == 1, sum(num), by = c('date')])
-plot(saaq_past_counts_sum[curr_pts_grp == 2, sum(num), by = c('date')])
-plot(saaq_past_counts_sum[curr_pts_grp == 3, sum(num), by = c('date')])
+# table(saaq_past_counts_sum[, curr_pts_grp])
+# plot(saaq_past_counts_sum[curr_pts_grp == 0, sum(num), by = c('date')])
+# plot(saaq_past_counts_sum[curr_pts_grp == 1, sum(num), by = c('date')])
+# plot(saaq_past_counts_sum[curr_pts_grp == 2, sum(num), by = c('date')])
+# plot(saaq_past_counts_sum[curr_pts_grp == 3, sum(num), by = c('date')])
+table(saaq_past_counts[, curr_pts_grp])
+plot(saaq_past_counts[curr_pts_grp == 0, sum(N), by = c('date')])
+plot(saaq_past_counts[curr_pts_grp == 1, sum(N), by = c('date')])
+plot(saaq_past_counts[curr_pts_grp == 2, sum(N), by = c('date')])
+plot(saaq_past_counts[curr_pts_grp == 3, sum(N), by = c('date')])
+
+plot(saaq_past_counts[curr_pts_grp == '11-20', sum(N), by = c('date')])
+plot(saaq_past_counts[curr_pts_grp == '30-150', sum(N), by = c('date')])
 
 
 # Check for past_active.
-plot(saaq_past_counts_sum[past_active == TRUE, sum(num), by = c('date')])
+# plot(saaq_past_counts_sum[past_active == TRUE, sum(num), by = c('date')])
+plot(saaq_past_counts[past_active == TRUE, sum(N), by = c('date')])
 
 
 
@@ -968,8 +1003,10 @@ fig_file_name <- '~/Research/SAAQ/SAAQ_counts/Counts_1_150.png'
 color_list <- rainbow(length(curr_pts_grp_list))
 first_color_num <- 2
 color_num <- first_color_num
-plot(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
-                          sum(num)/1000, by = c('date')],
+plot(saaq_past_counts[curr_pts_grp == curr_pts_grp_list[color_num],
+                          sum(N)/1000, by = c('date')],
+     # saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
+     #                      sum(num)/1000, by = c('date')],
      col = color_list[color_num],
      lwd = 3,
      main = 'Number of Drivers with Selected Current Point Balances',
@@ -978,9 +1015,11 @@ plot(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
      type = 'l',
      ylim = c(0, 500))
 for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
-  lines(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
-                             sum(num)/1000, by = c('date')],
-       col = color_list[color_num],
+  lines(saaq_past_counts[curr_pts_grp == curr_pts_grp_list[color_num],
+                             sum(N)/1000, by = c('date')],
+        # saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
+        #                      sum(num)/1000, by = c('date')],
+        col = color_list[color_num],
        lwd = 3)
 }
 legend(x = 'topleft',
@@ -993,67 +1032,67 @@ legend(x = 'topleft',
 # dev.off()
 
 
-# Plot for higher point balance categories.
-fig_file_name <- '~/Research/SAAQ/SAAQ_counts/Counts_4_150.png'
-# png(file = fig_file_name)
-color_list <- rainbow(length(curr_pts_grp_list))
-first_color_num <- 5
-color_num <- first_color_num
-plot(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
-                          sum(num)/1000, by = c('date')],
-     col = color_list[color_num],
-     lwd = 3,
-     main = 'Number of Drivers with Selected Current Point Balances',
-     xlab = 'Date',
-     ylab = 'Frequency (thousands)',
-     type = 'l',
-     ylim = c(0, 125))
-for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
-  lines(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
-                             sum(num)/1000, by = c('date')],
-        col = color_list[color_num],
-        lwd = 3)
-}
-legend(x = 'topleft',
-       legend = curr_pts_grp_list[first_color_num:length(curr_pts_grp_list)],
-       col = color_list[first_color_num:length(curr_pts_grp_list)],
-       lwd = 3) # ,
-# y.intersp = 1.25,
-# cex = 1.0,
-# seg.len = 0.5)
-# dev.off()
-
-
-
-# Plot for highest point balance categories.
-fig_file_name <- '~/Research/SAAQ/SAAQ_counts/Counts_7_150.png'
-# png(file = fig_file_name)
-color_list <- rainbow(length(curr_pts_grp_list))
-first_color_num <- 8
-color_num <- first_color_num
-plot(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
-                          sum(num)/1000, by = c('date')],
-     col = color_list[color_num],
-     lwd = 3,
-     main = 'Number of Drivers with Selected Current Point Balances',
-     xlab = 'Date',
-     ylab = 'Frequency (thousands)',
-     type = 'l',
-     ylim = c(0, 60))
-for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
-  lines(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
-                             sum(num)/1000, by = c('date')],
-        col = color_list[color_num],
-        lwd = 3)
-}
-legend(x = 'topleft',
-       legend = curr_pts_grp_list[first_color_num:length(curr_pts_grp_list)],
-       col = color_list[first_color_num:length(curr_pts_grp_list)],
-       lwd = 3) # ,
-# y.intersp = 1.25,
-# cex = 1.0,
-# seg.len = 0.5)
-# dev.off()
+# # Plot for higher point balance categories.
+# fig_file_name <- '~/Research/SAAQ/SAAQ_counts/Counts_4_150.png'
+# # png(file = fig_file_name)
+# color_list <- rainbow(length(curr_pts_grp_list))
+# first_color_num <- 5
+# color_num <- first_color_num
+# plot(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
+#                           sum(num)/1000, by = c('date')],
+#      col = color_list[color_num],
+#      lwd = 3,
+#      main = 'Number of Drivers with Selected Current Point Balances',
+#      xlab = 'Date',
+#      ylab = 'Frequency (thousands)',
+#      type = 'l',
+#      ylim = c(0, 125))
+# for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
+#   lines(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
+#                              sum(num)/1000, by = c('date')],
+#         col = color_list[color_num],
+#         lwd = 3)
+# }
+# legend(x = 'topleft',
+#        legend = curr_pts_grp_list[first_color_num:length(curr_pts_grp_list)],
+#        col = color_list[first_color_num:length(curr_pts_grp_list)],
+#        lwd = 3) # ,
+# # y.intersp = 1.25,
+# # cex = 1.0,
+# # seg.len = 0.5)
+# # dev.off()
+# 
+# 
+# 
+# # Plot for highest point balance categories.
+# fig_file_name <- '~/Research/SAAQ/SAAQ_counts/Counts_7_150.png'
+# # png(file = fig_file_name)
+# color_list <- rainbow(length(curr_pts_grp_list))
+# first_color_num <- 8
+# color_num <- first_color_num
+# plot(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
+#                           sum(num)/1000, by = c('date')],
+#      col = color_list[color_num],
+#      lwd = 3,
+#      main = 'Number of Drivers with Selected Current Point Balances',
+#      xlab = 'Date',
+#      ylab = 'Frequency (thousands)',
+#      type = 'l',
+#      ylim = c(0, 60))
+# for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
+#   lines(saaq_past_counts_sum[curr_pts_grp == curr_pts_grp_list[color_num],
+#                              sum(num)/1000, by = c('date')],
+#         col = color_list[color_num],
+#         lwd = 3)
+# }
+# legend(x = 'topleft',
+#        legend = curr_pts_grp_list[first_color_num:length(curr_pts_grp_list)],
+#        col = color_list[first_color_num:length(curr_pts_grp_list)],
+#        lwd = 3) # ,
+# # y.intersp = 1.25,
+# # cex = 1.0,
+# # seg.len = 0.5)
+# # dev.off()
 
 
 
@@ -1123,7 +1162,8 @@ legend(x = 'topleft',
 # Current version has separate tag for aggregated file with
 # new variable for past points indicator.
 out_path_file_name <- sprintf('%s/%s', data_out_path, out_file_name)
-write.csv(x = saaq_past_counts_sum, file = out_path_file_name, row.names = FALSE)
+# write.csv(x = saaq_past_counts_sum, file = out_path_file_name, row.names = FALSE)
+write.csv(x = saaq_past_counts, file = out_path_file_name, row.names = FALSE)
 
 
 
