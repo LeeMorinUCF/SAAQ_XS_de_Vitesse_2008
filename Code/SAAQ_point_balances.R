@@ -702,14 +702,15 @@ for (date_num in date_num_list) {
 
 # Sum on each date should be zero.
 # Drivers all swap in from zero points and swap to positive points.
-saaq_past_counts[, sum(N), by = c('date')] # All 292, except for day 1?
+saaq_past_counts[, sum(N), by = c('date')] 
 summary(saaq_past_counts[, sum(N), by = c('date')])
+
 summary(saaq_past_counts[N > 0, sum(N), by = c('date')])
-# Starts at 292, double the total for day 1:
+# Check the total for day 1:
 saaq_pts_chgs[date == date_list[beg_date_num], ]
 saaq_pts_chgs[date == date_list[beg_date_num], sum(N)]
 # Sum is 146, half of 292.
-# Missing a minus sign. Fixed. 
+# Was missing a minus sign. Fixed. 
 
 # Check the first day.
 saaq_past_counts[date == date_list[beg_date_num], ]
@@ -717,21 +718,34 @@ saaq_past_counts[date == date_list[beg_date_num], ]
 
 head(saaq_past_counts[N > 0, sum(N), by = c('date')])
 tail(saaq_past_counts[N > 0, sum(N), by = c('date')])
+saaq_past_counts[N > 0, sum(N), by = c('date')] 
+# Last date:
+# 4747: 2010-12-31 3065987
 
 # Compare to the counts of drivers.
 length(unique(saaq_dt[, seq]))
-# 3369249 (from original the data table) vs 3600227 (from the counts)
-3369249 - 3600227
-# -230978
+# [1] 3369249
+
+# # First check:
+# # 3369249 (from the original data table) vs 3600227 (from the counts)
+# 3369249 - 3600227
+# # -230978
+# # This doesn't match.
+# # This suggests that some 230978 are being added.
+# # Compare to the list of points. 
+# length(unique(saaq_past_pts[, seq]))
+# # 3369249 (which matches the original data table)
+
+# Second check:
+# 3369249 (from the original data table) vs 3065987 (from the counts)
+3369249 - 3065987
+# [1] 303262
 # This doesn't match.
-# This suggests that some 230978 are being added.
+# This suggests that some 303262 are getting lost.
 # Compare to the list of points. 
-colnames(saaq_past_pts)
 length(unique(saaq_past_pts[, seq]))
-# 3369249 (which matches the original the data table)
-
-
-
+# 3369249 (which matches the original data table)
+# [1] 3369249
 
 
 # Drivers then move around from there (possibly back to zero). 
@@ -756,7 +770,10 @@ plot(driver_count_2[, V1])
 
 head(cumsum(driver_count), 10)
 head(driver_count_2, 10)
-
+tail(cumsum(driver_count), 10)
+tail(driver_count_2, 10)
+# Looks like the count is missing some drivers.
+# But at least it matches up to the points table. 
 
 count_diff <- cumsum(driver_count) - c(0, driver_count_2[, V1])
 
@@ -784,29 +801,91 @@ print(saaq_past_counts[date == date_curr &
 print(saaq_past_counts[date == date_curr & 
                          N < 0 & 
                          curr_pts_grp != 0, ])
-# 146 non-zero categories with negative counts.
+# 146-149 non-zero categories with negative counts.
+summary(saaq_past_counts[date == date_curr & 
+                         N < 0 & 
+                         curr_pts_grp != 0, ])
+# From -1 to -17230.
 
 
-# How did this happen on day 2?
-deduct_counts[prev_pts_grp == 3, ]
+# Check for negative balances on particular days. 
+# All zero on day 1 (from lag).
+# All good on day 2.
+# date_num_sel <- 3 # One negative from 3 to 7.
+# The driver got two tickets in one day.
+# None on day 4 and 5; other drivers swapped in. 
+date_num_sel <- 5
+date_sel <- date_list[date_num_sel]
+summary(saaq_past_counts[date == date_sel, ])
+print(saaq_past_counts[date == date_sel & 
+                         N < 0, ])
+print(saaq_past_counts[date == date_sel & 
+                         N != 0 & 
+                         curr_pts_grp == 0, ])
+print(saaq_past_counts[date == date_sel & 
+                         N < 0 & 
+                         curr_pts_grp != 0, ])
 
 
-saaq_pts_chgs[date == date_curr & 
+
+# How did this happen on day 3?
+print(saaq_past_counts[date == date_list[3] & 
+                         N < 0 & 
+                         curr_pts_grp != 0, ])
+
+# Must be the 3 to 7 guy:
+saaq_pts_chgs[date == date_list[3] & 
                 prev_pts_grp != 0, ]
 
+colnames(saaq_dt)
+# saaq_dt[dinf == date_list[3] & points == 4 & curr_pts == 7, ]
+colnames(saaq_past_pts)
+saaq_past_pts[date == date_list[3] & 
+                prev_pts_grp == 3 & 
+                curr_pts_grp == 7, ]
+# seq      sex age       dinf points past_active curr_pts prev_pts curr_pts_grp prev_pts_grp age_grp       date
+# 1: 68306   M  39 1998-01-03      4        TRUE        7        3            7            3   35-44 1998-01-03
 
-# Evaluate the counts.
-summary(saaq_past_counts[date >= date_list[beg_date_num] & 
-                           date <= date_list[end_date_num], ])
-# Notice that this does not include the drivers with no tickets.
-# Negative counts indicate drivers who have swapped in by getting a ticket.
+# Check his record.
+saaq_dt[seq == 68306, ]
+# Aha! The driver got two tickets in one day.
 
-saaq_past_counts[date == date_curr, ]
-head(saaq_past_counts[date == date_curr, ], 100)
+# How often does this happen?
+driver_day_num_tickets <- saaq_dt[, .N, by = list(seq, dinf)]
+summary(driver_day_num_tickets)
+summary(driver_day_num_tickets[N > 1, ])
+summary(driver_day_num_tickets[, N > 1])
+driver_day_num_tickets[N > 1, sum(N)]
+# Mostly two tickets in a day. 
+# One driver got 26 tickets in one day:
+driver_day_num_tickets[N > 25, ]
+saaq_dt[seq == 847237, ]
+# Confirmed. 
 
-# Note that no drivers are recorded outside the date range.
-summary(saaq_past_counts[date < date_list[beg_date_num], ])
-summary(saaq_past_counts[date > date_list[end_date_num], ])
+# A few got 16-18 tickets. 
+driver_day_num_tickets[N > 15, ]
+saaq_dt[seq == 3526906, ]
+# Confirmed. 
+
+# Check these in the individual record of transitions.
+saaq_past_pts[seq == 68306, ]
+saaq_past_pts[seq == 847237, ]
+saaq_past_pts[seq == 3526906, ]
+saaq_past_counts[date == '1999-07-31' & curr_pts_grp == '30-150', ]
+# The 47-point day does not show up.
+
+# # Evaluate the counts.
+# summary(saaq_past_counts[date >= date_list[beg_date_num] & 
+#                            date <= date_list[end_date_num], ])
+# # Notice that this does not include the drivers with no tickets.
+# # Negative counts indicate drivers who have swapped in by getting a ticket.
+# 
+# saaq_past_counts[date == date_curr, ]
+# head(saaq_past_counts[date == date_curr, ], 100)
+# 
+# # Note that no drivers are recorded outside the date range.
+# summary(saaq_past_counts[date < date_list[beg_date_num], ])
+# summary(saaq_past_counts[date > date_list[end_date_num], ])
 
 
 # Check counts of drivers by point balances.
