@@ -559,12 +559,76 @@ head(saaq_past_pts, 20)
 # Change name of date variable (since not all are infractions).
 saaq_past_pts[, date := dinf]
 
+
+# Now this dataset can be used to calculate counts by category.
+# Not quite! Some drivers have several tickets in one day.
+# These drivers are counted several times over. 
+# Need to select current and previous category for each driver-day. 
+
+# Add indicator for event. 
+colnames(saaq_past_pts)
+saaq_past_pts[, 'event_id'] <- seq(nrow(saaq_past_pts))
+
+# Each driver-day, record the first id and last id.
+saaq_past_pts[, first_id := min(event_id), by = list(seq, date)]
+saaq_past_pts[, last_id := max(event_id), by = list(seq, date)]
+
+# Create true full-day transition from first balance
+# category to last balance category. 
+saaq_past_pts[event_id == first_id, prev_pts_trim := prev_pts]
+saaq_past_pts[event_id == last_id, curr_pts_trim := curr_pts]
+
+# Assign full-day balance categories.
+saaq_past_pts[, curr_pts_trim := mean(curr_pts_trim, na.rm = TRUE), by = list(seq, date)]
+saaq_past_pts[, prev_pts_trim := mean(prev_pts_trim, na.rm = TRUE), by = list(seq, date)]
+
+# Now calculate the corresponding points groups.
+saaq_past_pts[, curr_pts_grp_trim := '-99']
+saaq_past_pts[curr_pts_trim <= 10, curr_pts_grp_trim := as.character(curr_pts_trim)]
+saaq_past_pts[curr_pts_trim > 10 & curr_pts_trim <= 20,
+              curr_pts_grp_trim := '11-20']
+saaq_past_pts[curr_pts_trim > 20 & curr_pts_trim <= 30,
+              curr_pts_grp_trim := '21-30']
+saaq_past_pts[curr_pts_trim > 30,
+              curr_pts_grp_trim := '30-150']
+
+saaq_past_pts[, prev_pts_grp_trim := '-99']
+saaq_past_pts[prev_pts_trim <= 10, prev_pts_grp_trim := as.character(prev_pts_trim)]
+saaq_past_pts[prev_pts_trim > 10 & prev_pts_trim <= 20,
+              prev_pts_grp_trim := '11-20']
+saaq_past_pts[prev_pts_trim > 20 & prev_pts_trim <= 30,
+              prev_pts_grp_trim := '21-30']
+saaq_past_pts[prev_pts_trim > 30,
+              prev_pts_grp_trim := '30-150']
+
+
+head(saaq_past_pts)
+tail(saaq_past_pts)
+
+
+# Verify that it is working for the drivers with multiple tickets
+# in one day.
+saaq_past_pts[seq == 68306, ]
+saaq_past_pts[seq == 847237, ]
+saaq_past_pts[seq == 3526906, ]
+
+
 # Now this dataset can be used to calculate counts by category.
 
 
 # Create an aggregated version to streamline counting.
-saaq_pts_chgs <- saaq_past_pts[, .N, by = c('date', 'sex', 'age_grp', 'past_active', # Fixed categories.
-                                            'prev_pts_grp', 'curr_pts_grp')]         # Transition category. 
+# saaq_pts_chgs <- saaq_past_pts[, .N, by = c('date', 'sex', 'age_grp', 'past_active', # Fixed categories.
+#                                             'prev_pts_grp', 'curr_pts_grp')]         # Transition category. 
+# Eliminate all but the first record per driver day. 
+saaq_pts_chgs <- saaq_past_pts[event_id == first_id, .N, 
+                               by = c('date', 'sex', 'age_grp', 'past_active', # Fixed categories.
+                                      'prev_pts_grp_trim', 'curr_pts_grp_trim')]   # Transition category. 
+
+
+# Replace the column name as if drivers only got one ticket per day. 
+colnames(saaq_pts_chgs) <- c('date', 'sex', 'age_grp', 'past_active', 
+                             'prev_pts_grp', 'curr_pts_grp', 'N')
+
 
 head(saaq_pts_chgs, 20)
 
@@ -872,7 +936,15 @@ saaq_past_pts[seq == 68306, ]
 saaq_past_pts[seq == 847237, ]
 saaq_past_pts[seq == 3526906, ]
 saaq_past_counts[date == '1999-07-31' & curr_pts_grp == '30-150', ]
+saaq_past_counts[date == '1999-08-01' & curr_pts_grp == '30-150', ]
 # The 47-point day does not show up.
+# They are lost somewhere in between. 
+
+saaq_pts_chgs[date == '1999-07-31' & curr_pts_grp == '30-150', ]
+saaq_pts_chgs[date == '1999-07-31' & 
+                sex == 'M' & age_grp == '20-24' & past_active == TRUE, ]
+
+
 
 # # Evaluate the counts.
 # summary(saaq_past_counts[date >= date_list[beg_date_num] & 
