@@ -828,6 +828,7 @@ saaq_pts_chgs[date == date_list[beg_date_num], ]
 saaq_pts_chgs[date == date_list[beg_date_num], sum(N)]
 # Sum is 146, half of 292.
 # Was missing a minus sign. Fixed. 
+# Now it is 145, after removing some double-counting. 
 
 # Check the first day.
 saaq_past_counts[date == date_list[beg_date_num], ]
@@ -841,6 +842,10 @@ saaq_past_counts[N > 0, sum(N), by = c('date')]
 # 4747: 2010-12-31 3065987
 # Now it is this:
 # 4747: 2010-12-31 3040992
+# Now it is this:
+# 4747: 2010-12-31 1319592
+# That's really low. 
+# But it makes sense if most drivers are getting swapped back to zero.
 
 # Compare to the counts of drivers.
 length(unique(saaq_dt[, seq]))
@@ -888,11 +893,14 @@ colnames(point_changes)
 colnames(saaq_past_pts)
 first_ticket <- saaq_past_pts[, min(date), by = seq]
 summary(first_ticket)
-driver_count <- table(first_ticket[, V1])
+# driver_count <- table(first_ticket[, V1])
+driver_count <- first_ticket[, .N, by = list(V1)][order(V1), ]
 summary(driver_count)
 head(driver_count)
+tail(driver_count)
 plot(driver_count)
-plot(cumsum(driver_count))
+plot(cumsum(driver_count[, N]))
+tail(driver_count[, cumsum(N)])
 
 driver_count_2 <- saaq_past_counts[N > 0 & curr_pts_grp != 0, 
                                    sum(N), by = list(date)]
@@ -900,14 +908,16 @@ head(driver_count_2, 100)
 plot(driver_count_2[, V1])
 
 
-head(cumsum(driver_count), 10)
+head(cumsum(driver_count[, N]), 10)
 head(driver_count_2, 10)
-tail(cumsum(driver_count), 10)
+tail(cumsum(driver_count[, N]), 10)
 tail(driver_count_2, 10)
 # Looks like the count is missing some drivers.
 # But at least it matches up to the points table. 
+# Now there is a large number missing.
+# Maybe these have gone back to zero. 
 
-count_diff <- cumsum(driver_count) - c(0, driver_count_2[, V1])
+count_diff <- cumsum(driver_count[, N]) - c(0, driver_count_2[, V1])
 
 
 head(count_diff)
@@ -917,7 +927,7 @@ summary(count_diff)
 # The accumulated difference is quite large
 # and it grows over the sample--first up, then down
 # and levels off somewhat. 
-
+# Now it starts out flat and then grows linearly with some plateaus.
 
 
 
@@ -941,6 +951,17 @@ summary(saaq_past_counts[date == date_curr &
                          curr_pts_grp != 0, ])
 # From -1 to -17230.
 # Now from -1 to -15158.
+# Now down to zero. 
+# None left.
+
+
+# Check for negatives on all days.
+saaq_past_counts[N < 0, .N, by = curr_pts_grp]
+saaq_past_counts[N < 0, .N, by = list(sex, curr_pts_grp)]
+saaq_past_counts[N < 0, .N, by = list(sex, past_active, curr_pts_grp)]
+saaq_past_counts[N < 0, .N, 
+                 by = list(sex, age_grp, past_active, curr_pts_grp)][order(sex, age_grp, past_active, curr_pts_grp)]
+# Problem solved. 
 
 
 # Check for negative balances on particular days. 
@@ -952,7 +973,7 @@ summary(saaq_past_counts[date == date_curr &
 
 # After removing multiple tickets, 
 # the negatives happen less often.
-date_num_sel <- 10
+# date_num_sel <- 10
 for (date_num_sel in 20:30) {
   date_sel <- date_list[date_num_sel]
   print(sprintf("Negative counts with non-zero balances on %s", date_sel))
