@@ -217,7 +217,11 @@ saaq_dt_2 <- copy(saaq_dt)
 # Translate into the drops in points two years later.
 saaq_dt_2[, dinf := as.Date(dinf + 730)]
 saaq_dt[, dinf := as.Date(dinf)] # Change original date to match class.
-saaq_dt_2[, age := age + 2]
+
+# Only if age category not fixed.
+# saaq_dt_2[, age := age + 2]
+# summary(saaq_dt_2[, sqrt(var(age)), by = c('seq')])
+
 saaq_dt_2[, points := - points]
 head(saaq_dt_2, 10)
 head(saaq_dt, 10)
@@ -403,7 +407,7 @@ table(saaq_dt[, past_active], useNA = 'ifany')
 saaq_past_pts <- copy(saaq_dt[, c('seq', 'sex', 'age', 'dinf', 'points', 'past_active')])
 # Translate into the drops in points two years later.
 saaq_past_pts[, dinf := as.Date(dinf + 730)]
-saaq_past_pts[, age := age + 2]
+# saaq_past_pts[, age := age + 2] #not with fixed age categories.
 saaq_past_pts[, points := - points]
 head(saaq_past_pts, 10)
 # Append the original observations, then sort.
@@ -625,11 +629,16 @@ date_num_list <- beg_date_num:end_date_num
 
 # Loop on dates and calculate the totals.
 # date_num <- beg_date_num
+# date_num <- date_num + 1
 for (date_num in date_num_list) {
   
   # Select row for current date.
   date_curr <- date_list[date_num]
-  date_prev <- date_list[date_num - 1]
+  if (date_num == date_num_list[1]) {
+    date_prev <- NULL
+  } else {
+    date_prev <- date_list[date_num - 1]
+  }
   
   # Print progress report.
   if (wday(date_curr) == 1) {
@@ -639,6 +648,7 @@ for (date_num in date_num_list) {
   # Pull all point changes on this date. 
   point_changes <- saaq_pts_chgs[date == date_curr, ]
   # Only need drivers who actually changed categories.
+  # Some stay in 11-20, 21-30, or 31-150.
   point_changes <- point_changes[curr_pts_grp != prev_pts_grp]
   
   # Deduct from count of drivers in the previous categories.
@@ -658,7 +668,10 @@ for (date_num in date_num_list) {
   
   # Now this list should be in the same order as the date selection.
   
-  if (date_num > date_num_list[1] | beg_date_num == 2) {
+  # if (date_num > date_num_list[1] | beg_date_num == 2) {
+  if (date_num == date_num_list[1]) {
+    saaq_past_counts[date == date_curr, 'N'] <- - deduct_counts[, 'N']
+  } else {
     saaq_past_counts[date == date_curr, 'N'] <- 
       saaq_past_counts[date == date_prev, 'N'] - 
       deduct_counts[, 'N']
@@ -687,6 +700,99 @@ for (date_num in date_num_list) {
 
 }
 
+# Sum on each date should be zero.
+# Drivers all swap in from zero points and swap to positive points.
+saaq_past_counts[, sum(N), by = c('date')] # All 292, except for day 1?
+summary(saaq_past_counts[, sum(N), by = c('date')])
+summary(saaq_past_counts[N > 0, sum(N), by = c('date')])
+# Starts at 292, double the total for day 1:
+saaq_pts_chgs[date == date_list[beg_date_num], ]
+saaq_pts_chgs[date == date_list[beg_date_num], sum(N)]
+# Sum is 146, half of 292.
+# Missing a minus sign. Fixed. 
+
+# Check the first day.
+saaq_past_counts[date == date_list[beg_date_num], ]
+
+
+head(saaq_past_counts[N > 0, sum(N), by = c('date')])
+tail(saaq_past_counts[N > 0, sum(N), by = c('date')])
+
+# Compare to the counts of drivers.
+length(unique(saaq_dt[, seq]))
+# 3369249 (from original the data table) vs 3600227 (from the counts)
+3369249 - 3600227
+# -230978
+# This doesn't match.
+# This suggests that some 230978 are being added.
+# Compare to the list of points. 
+colnames(saaq_past_pts)
+length(unique(saaq_past_pts[, seq]))
+# 3369249 (which matches the original the data table)
+
+
+
+
+
+# Drivers then move around from there (possibly back to zero). 
+# Total positive population should be the count of drivers who have received
+# any ticket up to that date. 
+colnames(saaq_past_counts)
+colnames(point_changes)
+colnames(saaq_past_pts)
+first_ticket <- saaq_past_pts[, min(date), by = seq]
+summary(first_ticket)
+driver_count <- table(first_ticket[, V1])
+summary(driver_count)
+head(driver_count)
+plot(driver_count)
+plot(cumsum(driver_count))
+
+driver_count_2 <- saaq_past_counts[N > 0 & curr_pts_grp != 0, 
+                                   sum(N), by = list(date)]
+head(driver_count_2, 100)
+plot(driver_count_2[, V1])
+
+
+head(cumsum(driver_count), 10)
+head(driver_count_2, 10)
+
+
+count_diff <- cumsum(driver_count) - c(0, driver_count_2[, V1])
+
+
+head(count_diff)
+tail(count_diff)
+plot(count_diff)
+summary(count_diff)
+# The accumulated difference is quite large
+# and it grows over the sample--first up, then down. 
+
+
+
+
+
+# Troubleshooting surprise negative counts.
+summary(saaq_past_counts[date == date_curr, 'N'])
+print(saaq_past_counts[date == date_curr & 
+                         N != 0, ])
+print(saaq_past_counts[date == date_curr & 
+                         N < 0, ])
+print(saaq_past_counts[date == date_curr & 
+                         N != 0 & 
+                         curr_pts_grp == 0, ])
+print(saaq_past_counts[date == date_curr & 
+                         N < 0 & 
+                         curr_pts_grp != 0, ])
+# 146 non-zero categories with negative counts.
+
+
+# How did this happen on day 2?
+deduct_counts[prev_pts_grp == 3, ]
+
+
+saaq_pts_chgs[date == date_curr & 
+                prev_pts_grp != 0, ]
 
 
 # Evaluate the counts.
