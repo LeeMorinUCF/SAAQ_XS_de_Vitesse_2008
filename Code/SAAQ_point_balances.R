@@ -314,6 +314,10 @@ saaq_dt[curr_pts > 30,
 
 # Change type to factor.
 saaq_dt[, curr_pts_grp := as.factor(curr_pts_grp)]
+# curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
+curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '30-150')
+saaq_dt[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+
 
 table(saaq_dt[, curr_pts_grp])
 
@@ -509,6 +513,7 @@ saaq_past_pts[curr_pts > 30,
 
 table(saaq_past_pts[, curr_pts_grp], useNA = 'ifany')
 
+# curr_pts_grp_list <- c(as.character(seq(0, 10)), '11-20', '21-30', '31-150')
 curr_pts_grp_list <- c(as.character(seq(0, 10)), '11-20', '21-30', '30-150')
 
 
@@ -629,6 +634,17 @@ saaq_pts_chgs <- saaq_past_pts[event_id == first_id, .N,
 colnames(saaq_pts_chgs) <- c('date', 'sex', 'age_grp', 'past_active', 
                              'prev_pts_grp', 'curr_pts_grp', 'N')
 
+# Points groups need to be converted to factors.
+saaq_pts_chgs[, prev_pts_grp := factor(prev_pts_grp, levels = curr_pts_grp_list)]
+saaq_pts_chgs[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+
+
+
+class(saaq_pts_chgs)
+table(saaq_pts_chgs[, 'prev_pts_grp'])
+table(saaq_pts_chgs[, 'curr_pts_grp'])
+
+
 
 head(saaq_pts_chgs, 20)
 
@@ -636,6 +652,12 @@ saaq_pts_chgs <- saaq_pts_chgs[order(date, sex, age_grp, past_active,
                                      prev_pts_grp, curr_pts_grp)]
 
 summary(saaq_pts_chgs)
+
+
+# Inspect a sample to check the order.
+saaq_pts_chgs[date == '1998-01-22' & 
+                sex == 'M' &  age_grp == '65-74' &  past_active == TRUE, ]
+
 
 #--------------------------------------------------------------------------------
 # Daily categorization of point total balances across age and sex categories
@@ -690,8 +712,14 @@ end_date_num <- which(date_list == end_date)
 date_num_list <- beg_date_num:end_date_num
 
 
+# Points groups may need to be converted to factors.
+# saaq_pts_chgs[, prev_pts_grp := factor(prev_pts_grp, levels = curr_pts_grp_list)]
+# saaq_pts_chgs[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+
+
 
 # Loop on dates and calculate the totals.
+# date_num <- 22
 # date_num <- beg_date_num
 # date_num <- date_num + 1
 for (date_num in date_num_list) {
@@ -728,9 +756,26 @@ for (date_num in date_num_list) {
                                  by = c('sex', 'age_grp', 'past_active', 
                                         'prev_pts_grp')]
   deduct_counts <- unique(deduct_counts)
+  deduct_counts[, prev_pts_grp := factor(prev_pts_grp, levels = curr_pts_grp_list)]
   deduct_counts <- deduct_counts[order(sex, age_grp, past_active, prev_pts_grp)]
   
   # Now this list should be in the same order as the date selection.
+  # But let's make sure.
+  # deduct_counts[sex == 'M' & age_grp == '65-74' & past_active == TRUE, ]
+  # saaq_past_counts[date == date_curr & 
+  #                    sex == 'M' & age_grp == '65-74' & past_active == TRUE, ]
+  
+  # Whay are they going out of order?
+  # table(deduct_counts[, prev_pts_grp])
+  # class(point_changes[, prev_pts_grp])
+  # class(deduct_counts[, prev_pts_grp])
+  # class(saaq_pts_chgs[, prev_pts_grp])
+  # levels(point_changes[, prev_pts_grp])
+  # levels(deduct_counts[, prev_pts_grp])
+  # levels(saaq_pts_chgs[, prev_pts_grp])
+  # It could be because they are not factors.
+  
+  
   
   # if (date_num > date_num_list[1] | beg_date_num == 2) {
   if (date_num == date_num_list[1]) {
@@ -754,9 +799,17 @@ for (date_num in date_num_list) {
                                  by = c('sex', 'age_grp', 'past_active', 
                                         'curr_pts_grp')]
   add_counts <- unique(add_counts)
+  add_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
   add_counts <- add_counts[order(sex, age_grp, past_active, curr_pts_grp)]
   
   # Now this list should be in the same order as the date selection.
+  # But let's make sure.
+  # add_counts[sex == 'M' & age_grp == '65-74' & past_active == TRUE, ]
+  # saaq_past_counts[date == date_curr & 
+  #                    sex == 'M' & age_grp == '65-74' & past_active == TRUE, ]
+  
+  
+  
   saaq_past_counts[date == date_curr, 'N'] <- 
     saaq_past_counts[date == date_curr, 'N'] + 
     add_counts[, 'N']
@@ -780,11 +833,14 @@ saaq_pts_chgs[date == date_list[beg_date_num], sum(N)]
 saaq_past_counts[date == date_list[beg_date_num], ]
 
 
+# Look at the cumulative driver counts.
 head(saaq_past_counts[N > 0, sum(N), by = c('date')])
 tail(saaq_past_counts[N > 0, sum(N), by = c('date')])
 saaq_past_counts[N > 0, sum(N), by = c('date')] 
 # Last date:
 # 4747: 2010-12-31 3065987
+# Now it is this:
+# 4747: 2010-12-31 3040992
 
 # Compare to the counts of drivers.
 length(unique(saaq_dt[, seq]))
@@ -806,6 +862,18 @@ length(unique(saaq_dt[, seq]))
 # [1] 303262
 # This doesn't match.
 # This suggests that some 303262 are getting lost.
+# Compare to the list of points. 
+length(unique(saaq_past_pts[, seq]))
+# 3369249 (which matches the original data table)
+# [1] 3369249
+
+
+# Third check:
+# 3369249 (from the original data table) vs 3040992 (from the counts)
+3369249 - 3040992
+# [1] 328257
+# This doesn't match.
+# This suggests that some 328257 are getting lost.
 # Compare to the list of points. 
 length(unique(saaq_past_pts[, seq]))
 # 3369249 (which matches the original data table)
@@ -847,7 +915,8 @@ tail(count_diff)
 plot(count_diff)
 summary(count_diff)
 # The accumulated difference is quite large
-# and it grows over the sample--first up, then down. 
+# and it grows over the sample--first up, then down
+# and levels off somewhat. 
 
 
 
@@ -866,10 +935,12 @@ print(saaq_past_counts[date == date_curr &
                          N < 0 & 
                          curr_pts_grp != 0, ])
 # 146-149 non-zero categories with negative counts.
+# Now down to 124.
 summary(saaq_past_counts[date == date_curr & 
                          N < 0 & 
                          curr_pts_grp != 0, ])
 # From -1 to -17230.
+# Now from -1 to -15158.
 
 
 # Check for negative balances on particular days. 
@@ -878,19 +949,76 @@ summary(saaq_past_counts[date == date_curr &
 # date_num_sel <- 3 # One negative from 3 to 7.
 # The driver got two tickets in one day.
 # None on day 4 and 5; other drivers swapped in. 
-date_num_sel <- 5
-date_sel <- date_list[date_num_sel]
-summary(saaq_past_counts[date == date_sel, ])
-print(saaq_past_counts[date == date_sel & 
-                         N < 0, ])
-print(saaq_past_counts[date == date_sel & 
-                         N != 0 & 
-                         curr_pts_grp == 0, ])
-print(saaq_past_counts[date == date_sel & 
+
+# After removing multiple tickets, 
+# the negatives happen less often.
+date_num_sel <- 10
+for (date_num_sel in 20:30) {
+  date_sel <- date_list[date_num_sel]
+  print(sprintf("Negative counts with non-zero balances on %s", date_sel))
+  summary(saaq_past_counts[date == date_sel, ])
+  # print(saaq_past_counts[date == date_sel & 
+  #                          N < 0, ])
+  # print(saaq_past_counts[date == date_sel & 
+  #                          N != 0 & 
+  #                          curr_pts_grp == 0, ])
+  print(saaq_past_counts[date == date_sel & 
+                           N < 0 & 
+                           curr_pts_grp != 0, ])
+  
+} 
+
+
+
+#--------------------------------------------------------------------------------
+# Detecting problem with negatives appearing. 
+#--------------------------------------------------------------------------------
+
+date_list[21]
+print(saaq_past_counts[date == date_list[21] & 
                          N < 0 & 
                          curr_pts_grp != 0, ])
 
+saaq_pts_chgs[date == date_list[21] & 
+                prev_pts_grp != 0, ]
 
+saaq_pts_chgs[date == date_list[21] & 
+                sex == 'F' & age_grp == '55-64' & past_active == TRUE, ]
+
+saaq_past_pts[date == date_list[21] & 
+                sex == 'F' & age_grp == '55-64' & past_active == TRUE, ]#  & 
+                # prev_pts_grp == 2 & 
+                # curr_pts_grp == 4, ]
+
+saaq_past_pts[seq == 2255414, ]
+# Nothing unusual here.
+
+
+# Try another one.
+date_list[22]
+print(saaq_past_counts[date == date_list[22] & 
+                         N < 0 & 
+                         curr_pts_grp != 0, ])
+
+saaq_pts_chgs[date == date_list[22] & 
+                prev_pts_grp != 0, ]
+
+saaq_pts_chgs[date == date_list[22] & 
+                sex == 'M' & age_grp == '65-74' & past_active == TRUE, ]
+
+saaq_past_pts[date == date_list[22] & 
+                sex == 'M' & age_grp == '65-74' & past_active == TRUE, ]#  & 
+# prev_pts_grp == 2 & 
+# curr_pts_grp == 4, ]
+
+saaq_past_pts[seq == 788702, ]
+
+
+
+
+#--------------------------------------------------------------------------------
+# Detecting problem with multiple tickets:
+#--------------------------------------------------------------------------------
 
 # How did this happen on day 3?
 print(saaq_past_counts[date == date_list[3] & 
@@ -943,6 +1071,10 @@ saaq_past_counts[date == '1999-08-01' & curr_pts_grp == '30-150', ]
 saaq_pts_chgs[date == '1999-07-31' & curr_pts_grp == '30-150', ]
 saaq_pts_chgs[date == '1999-07-31' & 
                 sex == 'M' & age_grp == '20-24' & past_active == TRUE, ]
+
+
+#--------------------------------------------------------------------------------
+
 
 
 
