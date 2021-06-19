@@ -1010,7 +1010,7 @@ summary(saaq_past_counts[curr_pts_grp == 9, N])
 summary(saaq_past_counts[curr_pts_grp == 10, N])
 summary(saaq_past_counts[curr_pts_grp == '11-20', N])
 summary(saaq_past_counts[curr_pts_grp == '21-30', N])
-summary(saaq_past_counts[curr_pts_grp == '30-150', N])
+summary(saaq_past_counts[curr_pts_grp == '31-150', N])
 
 
 
@@ -1111,7 +1111,7 @@ plot(saaq_past_counts[curr_pts_grp == 2, sum(N), by = c('date')])
 plot(saaq_past_counts[curr_pts_grp == 3, sum(N), by = c('date')])
 
 plot(saaq_past_counts[curr_pts_grp == '11-20', sum(N), by = c('date')])
-plot(saaq_past_counts[curr_pts_grp == '30-150', sum(N), by = c('date')])
+plot(saaq_past_counts[curr_pts_grp == '31-150', sum(N), by = c('date')])
 
 
 # Check for past_active.
