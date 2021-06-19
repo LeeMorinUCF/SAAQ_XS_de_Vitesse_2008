@@ -233,12 +233,15 @@ tickets <- NULL
 # Generate data By age group
 ################################################################################
 
-# Age in years by date of infraction.
-saaq[, 'age'] <- as.integer(substr(saaq[, 'dinf'], 1, 4)) - (1900 + saaq[, 'dob_yr'])
-# Redefine for fixed age category.
-# Define age as age at time of policy change.
-saaq[, 'age'] <- 2008 - (1900 + saaq[, 'dob_yr'])
+# Previously, we defined age in years by date of infraction.
+# saaq[, 'age'] <- as.integer(substr(saaq[, 'dinf'], 1, 4)) - (1900 + saaq[, 'dob_yr'])
 
+# Now redefine ages to create a fixed age category.
+# Define age as age in years at time of policy change.
+saaq[, 'age'] <- 2008 - (1900 + saaq[, 'dob_yr'])
+# This way, the only variable with transitions is the point balances.
+# It makes for a one-dimensional state space for the (quasi-) first-order Markov model
+# (quasi- because demerit points expire after two years).
 
 summary(saaq[, 'age'])
 sum(saaq[, 'age'] < 10)
