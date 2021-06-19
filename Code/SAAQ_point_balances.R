@@ -84,8 +84,6 @@ out_file_name <- 'saaq_point_balances.csv'
 # Set parameters related to dates
 #--------------------------------------------------------------------------------
 
-
-
 # Set date of policy change.
 april_fools_2008 <- '2008-04-01'
 # No joke: policy change on April Fool's Day!
@@ -100,6 +98,7 @@ date_list <- as.Date(seq(day_1, day_T), origin = as.Date('1970-01-01'))
 length(date_list)
 min(date_list)
 max(date_list)
+
 
 #--------------------------------------------------------------------------------
 # Set parameters for age and point categories.
@@ -132,6 +131,12 @@ in_path_file_name <- sprintf('%s/%s', data_in_path, tickets_file_name)
 saaq_point_hist <- fread(file = in_path_file_name)
 
 colnames(saaq_point_hist)
+
+
+
+# Change name of date variable (since not all will be infractions).
+# saaq_point_hist[, date := date]
+colnames(saaq_point_hist)[6] <- 'date'
 
 
 #--------------------------------------------------------------------------------
@@ -174,11 +179,11 @@ summary(saaq_point_hist)
 #--------------------------------------------------------------------------------
 
 # Change name of date variable (since not all will be infractions).
-# saaq_point_hist[, date := dinf]
+# saaq_point_hist[, date := date]
 
 
 # Sort by date and seq.
-saaq_point_hist <- saaq_point_hist[order(seq, dinf), ]
+saaq_point_hist <- saaq_point_hist[order(seq, date), ]
 head(saaq_point_hist, 10)
 
 # Create a data table to calculate cumulative points balances.
@@ -196,8 +201,8 @@ saaq_point_hist_2 <- copy(saaq_point_hist)
 
 
 # Translate into the drops in points two years later.
-saaq_point_hist_2[, dinf := as.Date(dinf + 730)]
-saaq_point_hist[, dinf := as.Date(dinf)] # Change original date to match class.
+saaq_point_hist_2[, date := as.Date(date + 730)]
+saaq_point_hist[, date := as.Date(date)] # Change original date to match class.
 
 # Negative points two years later will subtract
 # expiring points from two-year balance.
@@ -213,7 +218,7 @@ head(saaq_point_hist_2, 10)
 saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_2)
 
 saaq_point_hist <- saaq_point_hist[order(seq,
-                         dinf,
+                         date,
                          points)]
 head(saaq_point_hist, 10)
 
@@ -258,13 +263,13 @@ head(saaq_point_hist, 20)
 # saaq_point_hist[, beg_pts := min(cum_pts_lag), by = seq]
 # saaq_point_hist[, hist_pts := cum_pts - beg_pts]
 
-# head(saaq_point_hist[, c('seq', 'dinf', 'points', 'cum_pts', 'beg_pts', 'hist_pts', 'curr_pts')], 20)
-# summary(saaq_point_hist[, c('seq', 'dinf', 'points', 'cum_pts', 'beg_pts', 'hist_pts', 'curr_pts')])
+# head(saaq_point_hist[, c('seq', 'date', 'points', 'cum_pts', 'beg_pts', 'hist_pts', 'curr_pts')], 20)
+# summary(saaq_point_hist[, c('seq', 'date', 'points', 'cum_pts', 'beg_pts', 'hist_pts', 'curr_pts')])
 
 
 
 # # Closer look at comparison of different point counts.
-# head(saaq_point_hist[, c('seq', 'dinf', 'points', 'hist_pts', 'curr_pts')], 100)
+# head(saaq_point_hist[, c('seq', 'date', 'points', 'hist_pts', 'curr_pts')], 100)
 
 
 # Look correct.
@@ -280,8 +285,8 @@ saaq_point_hist[, prev_pts := curr_pts - points]
 
 
 # Check one last time.
-# head(saaq_point_hist[, c('seq', 'dinf', 'points', 'hist_pts', 'curr_pts')], 100)
-head(saaq_point_hist[, c('seq', 'dinf', 'points', 'curr_pts', 'prev_pts')], 100)
+# head(saaq_point_hist[, c('seq', 'date', 'points', 'hist_pts', 'curr_pts')], 100)
+head(saaq_point_hist[, c('seq', 'date', 'points', 'curr_pts', 'prev_pts')], 100)
 
 
 
@@ -313,7 +318,7 @@ saaq_point_hist[, prev_pts_grp := factor(prev_pts_grp, levels = curr_pts_grp_lis
 
 table(saaq_point_hist[, curr_pts_grp], useNA = 'ifany')
 table(saaq_point_hist[, prev_pts_grp], useNA = 'ifany')
-# Note that they math:
+# Note that they match:
 # Every point balance that occurred, has occurred both previously and currently. 
 # In particular, the zero balances are either at the beginnings or the ends. 
 
@@ -324,8 +329,8 @@ table(saaq_point_hist[, prev_pts_grp], useNA = 'ifany')
 #--------------------------------------------------------------------------------
 
 # colnames(saaq_point_hist)
-# saaq_point_hist[, pre_policy := dinf < as.Date('2008-04-01')]
-saaq_point_hist[, pre_policy := dinf < as.Date(april_fools_2008)]
+# saaq_point_hist[, pre_policy := date < as.Date('2008-04-01')]
+saaq_point_hist[, pre_policy := date < as.Date(april_fools_2008)]
 table(saaq_point_hist[, pre_policy], useNA = 'ifany')
 # Pre-policy period is much longer with an asymmetric window. 
 
@@ -364,22 +369,22 @@ table(saaq_point_hist[, past_active], useNA = 'ifany')
 #--------------------------------------------------------------------------------
 
 # Requires only certain variables to proceed. 
-# saaq_point_hist <- saaq_point_hist[, c('seq', 'sex', 'age', 'dinf', 'points', 'past_active')]
+# saaq_point_hist <- saaq_point_hist[, c('seq', 'sex', 'age', 'date', 'points', 'past_active')]
 saaq_point_hist <- saaq_point_hist[, c('seq', 'sex', 'age_grp', 'past_active', 
-                                       'dinf', 'points', 'curr_pts', 'prev_pts')]
+                                       'date', 'points', 'curr_pts', 'prev_pts')]
 
 
 
-# Change name of date variable (since not all are infractions).
-saaq_point_hist[, date := dinf]
-# Later versions will do this earlier and keep the variable called "date" throughout.
-
+# # Change name of date variable (since not all are infractions).
+# saaq_point_hist[, date := date]
+# # Later versions will do this earlier and keep the variable called "date" throughout.
+# Moved above.
 
 # Note that this is for defining the rest of the population, not the ticket-getters.
 # These figures should be lagged one day.
 # Their ticket balance is the value they start with tomorrow morning. 
 
-saaq_point_hist[points > 0, dinf := as.Date(dinf + 1)]
+saaq_point_hist[points > 0, date := as.Date(date + 1)]
 
 summary(saaq_point_hist)
 
@@ -565,7 +570,8 @@ colnames(saaq_zero_prev)[4] <- 'prev_pts_grp'
 beg_date <- date_list[1]
 beg_date_num <- which(date_list == beg_date)
 # end_date <- '2004-12-31' # Test with 1-year sample.
-end_date <- '2010-12-31'
+# end_date <- '2010-12-31'
+end_date <- '2013-01-01' # Allows all points to expire. 
 end_date_num <- which(date_list == end_date)
 # Note that this leaves many dates at zero, outside of the range. 
 date_num_list <- beg_date_num:end_date_num
@@ -717,9 +723,9 @@ saaq_past_counts[N > 0, sum(N), by = c('date')]
 
 
 # # Compare to the drivers with tickets in the last two years. 
-# # saaq_point_hist[dinf >= '2008-01-01', ]
+# # saaq_point_hist[date >= '2008-01-01', ]
 # # summary(saaq_point_hist)
-# saaq_point_hist[dinf >= '2008-01-01' & first_id == event_id & points > 0, .N]
+# saaq_point_hist[date >= '2008-01-01' & first_id == event_id & points > 0, .N]
 # # [1] 2888758
 # 
 # 
@@ -927,12 +933,12 @@ saaq_past_counts[N < 0, .N,
 #                 prev_pts_grp != 0, ]
 # 
 # colnames(saaq_point_hist)
-# # saaq_point_hist[dinf == date_list[3] & points == 4 & curr_pts == 7, ]
+# # saaq_point_hist[date == date_list[3] & points == 4 & curr_pts == 7, ]
 # colnames(saaq_point_hist)
 # saaq_point_hist[date == date_list[3] & 
 #                 prev_pts_grp == 3 & 
 #                 curr_pts_grp == 7, ]
-# # seq      sex age       dinf points past_active curr_pts prev_pts curr_pts_grp prev_pts_grp age_grp       date
+# # seq      sex age       date points past_active curr_pts prev_pts curr_pts_grp prev_pts_grp age_grp       date
 # # 1: 68306   M  39 1998-01-03      4        TRUE        7        3            7            3   35-44 1998-01-03
 # 
 # # Check his record.
@@ -940,7 +946,7 @@ saaq_past_counts[N < 0, .N,
 # # Aha! The driver got two tickets in one day.
 # 
 # # How often does this happen?
-# driver_day_num_tickets <- saaq_point_hist[, .N, by = list(seq, dinf)]
+# driver_day_num_tickets <- saaq_point_hist[, .N, by = list(seq, date)]
 # summary(driver_day_num_tickets)
 # summary(driver_day_num_tickets[N > 1, ])
 # summary(driver_day_num_tickets[, N > 1])
@@ -1140,10 +1146,10 @@ for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
         col = color_list[color_num],
        lwd = 3)
 }
-legend(x = 'topleft',
-       legend = curr_pts_grp_list[first_color_num:length(curr_pts_grp_list)],
-       col = color_list[first_color_num:length(curr_pts_grp_list)],
-       lwd = 3) # ,
+# legend(x = 'topleft',
+#        legend = curr_pts_grp_list[first_color_num:length(curr_pts_grp_list)],
+#        col = color_list[first_color_num:length(curr_pts_grp_list)],
+#        lwd = 3) # ,
        # y.intersp = 1.25,
        # cex = 1.0,
        # seg.len = 0.5)
