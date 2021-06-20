@@ -17,7 +17,7 @@
 # College of Business
 # University of Central Florida
 #
-# June 9, 2021
+# June 19, 2021
 #
 ################################################################################
 #
@@ -64,15 +64,19 @@ setwd(wd_path)
 data_in_path <- 'Data'
 
 # Set name of file with records of tickets. 
-tickets_file_name <- 'saaq_tickets.csv'
+tickets_in_file_name <- 'saaq_tickets.csv'
 
 
 # The data of counts of licensed drivers are also stored in 'Data/'.
 data_out_path <- 'Data'
 
+# Set name of output file with additional variables appended to
+# tickets dataset. 
+tickets_out_file_name <- 'saaq_tickets_balances.csv'
+
 
 # Set name of output file for point totals.
-out_file_name <- 'saaq_point_balances.csv'
+balance_out_file_name <- 'saaq_point_balances.csv'
 
 
 
@@ -127,7 +131,7 @@ past_active_pts_list <- c('6', '7', '8', '9', '10')
 
 
 # Start with the dataset of tickets. 
-in_path_file_name <- sprintf('%s/%s', data_in_path, tickets_file_name)
+in_path_file_name <- sprintf('%s/%s', data_in_path, tickets_in_file_name)
 saaq_point_hist <- fread(file = in_path_file_name)
 
 colnames(saaq_point_hist)
@@ -135,8 +139,8 @@ colnames(saaq_point_hist)
 
 
 # Change name of date variable (since not all will be infractions).
-# saaq_point_hist[, date := date]
-colnames(saaq_point_hist)[6] <- 'date'
+saaq_point_hist[, date := dinf]
+# colnames(saaq_point_hist)[6] <- 'date'
 
 
 #--------------------------------------------------------------------------------
@@ -371,7 +375,9 @@ table(saaq_point_hist[, past_active], useNA = 'ifany')
 # Requires only certain variables to proceed. 
 # saaq_point_hist <- saaq_point_hist[, c('seq', 'sex', 'age', 'date', 'points', 'past_active')]
 saaq_point_hist <- saaq_point_hist[, c('seq', 'sex', 'age_grp', 'past_active', 
-                                       'date', 'points', 'curr_pts', 'prev_pts')]
+                                       'dinf', 'date', 
+                                       'points', 'curr_pts', 'prev_pts', 
+                                       'curr_pts_grp', 'prev_pts_grp')]
 
 
 
@@ -486,7 +492,13 @@ saaq_point_hist[seq == 847237, ]
 saaq_point_hist[seq == 3526906, ]
 
 
-# Now this dataset can be used to calculate counts by category.
+# This is one of the datasets that will be output below.
+colnames(saaq_point_hist)
+
+
+#--------------------------------------------------------------------------------
+# Calculate counts of drivers by category.
+#--------------------------------------------------------------------------------
 
 
 # Create an aggregated version to streamline counting.
@@ -1268,24 +1280,39 @@ for (color_num in (color_num + 1):length(curr_pts_grp_list)) {
 
 
 
+
+
 ################################################################################
+# Output datasets
 ################################################################################
-################################################################################
-################################################################################
-################################################################################
+
+
+#--------------------------------------------------------------------------------
+# Output dataset of tickets with balance variables.
+#--------------------------------------------------------------------------------
+
+
+# Drop the negative points for expiries. 
+# Keep only the tickets.
+saaq_point_hist <- saaq_point_hist[points > 0, ]
+
+summary(saaq_point_hist)
+
+
+out_path_file_name <- sprintf('%s/%s', data_out_path, tickets_out_file_name)
+# write.csv(x = saaq_past_counts_sum, file = out_path_file_name, row.names = FALSE)
+write.csv(x = saaq_point_hist, file = out_path_file_name, row.names = FALSE)
 
 
 
 
-
-
-################################################################################
-# Output Point Balances by Driver
-################################################################################
+#--------------------------------------------------------------------------------
+# Output Counts of Drivers by Point Balances
+#--------------------------------------------------------------------------------
 
 # Current version has separate tag for aggregated file with
 # new variable for past points indicator.
-out_path_file_name <- sprintf('%s/%s', data_out_path, out_file_name)
+out_path_file_name <- sprintf('%s/%s', data_out_path, balance_out_file_name)
 # write.csv(x = saaq_past_counts_sum, file = out_path_file_name, row.names = FALSE)
 write.csv(x = saaq_past_counts, file = out_path_file_name, row.names = FALSE)
 
