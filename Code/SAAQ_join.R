@@ -339,6 +339,35 @@ all_driver_counts[num < 0, mean(num),
                   by = list(sex, age_grp, past_active)][order(sex, past_active, age_grp)]
 
 
+# Check within sample period only.
+all_driver_counts[num < 0 & 
+                    date >= '2006-01-01' & 
+                    date <= '2010-12-31', mean(num), 
+                  by = list(sex, age_grp, past_active)][order(sex, past_active, age_grp)]
+
+
+# In the relevant sample, only the past actives are zero. 
+# Take average without past_active.
+all_driver_counts[num < 0 & 
+                    date >= '2006-01-01' & 
+                    date <= '2010-12-31', mean(num), 
+                  by = list(sex, age_grp)][order(sex, age_grp)]
+# Restrict to zero points balance.
+all_driver_counts[curr_pts_grp != 0 & 
+                    date >= '2006-01-01' & 
+                    date <= '2010-12-31', mean(num), 
+                  by = list(sex, age_grp)][order(sex, age_grp)]
+# The average numbers in the zero category is only up to the thousands.
+
+
+# One problem is that the counts do not represent the same drivers:
+# drivers enter and leave Quebec 
+# and new drivers get their license and others stop driving. 
+
+
+# The best solution is to add the categories from both datasets.
+
+
 #-------------------------------------------------------------------------------
 # Next join driver counts and point-balance counts
 # to the record of tickets.
