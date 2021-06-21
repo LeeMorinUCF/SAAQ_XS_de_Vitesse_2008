@@ -75,6 +75,14 @@ age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
 # Current points group categories for defining factors.
 curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
 
+# Weekday indicators.
+weekday_list <- c('Sunday',
+                  'Monday',
+                  'Tuesday',
+                  'Wednesday',
+                  'Thursday',
+                  'Friday',
+                  'Saturday')
 
 
 ################################################################################
@@ -89,11 +97,32 @@ curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
 in_path_file_name <- sprintf('%s/%s', data_in_path, train_file_name)
 saaq_train <- fread(in_path_file_name)
 
+summary(saaq_train)
 
-# Define categorical variables as factors.
-saaq_train[, sex := factor(sex, levels = c('M', 'F'))]
-saaq_train[, age_grp := factor(age_grp, levels = age_group_list)]
-saaq_train[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+summary(saaq_train[, .N, by = date])
+head(saaq_train, 618)
+
+
+table(saaq_train[, sex], useNA = 'ifany')
+# 50-50.
+table(saaq_train[, age_grp], useNA = 'ifany')
+# 11 equal groups.
+table(saaq_train[, past_active], useNA = 'ifany')
+# 50-50.
+table(saaq_train[, past_active], saaq_train[, sex], useNA = 'ifany')
+# Equally divided by sex.
+table(saaq_train[, curr_pts_grp], saaq_train[, past_active], useNA = 'ifany')
+# Equally divided across current points categories. 
+
+
+length(unique(saaq_train[, date]))
+# [1] 1826 days of driving.
+
+2*length(age_group_list)*2*length(curr_pts_grp_list)
+# [1] 616 combinations of categories per day.
+
+# All observations accounted for.
+nrow(saaq_train) == 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 
 
 #-------------------------------------------------------------------------------
@@ -104,23 +133,95 @@ saaq_train[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 in_path_file_name <- sprintf('%s/%s', data_in_path, test_file_name)
 saaq_test <- fread(in_path_file_name)
 
+summary(saaq_test)
+
+summary(saaq_test[, .N, by = date])
+head(saaq_test, 618)
+
+
+table(saaq_test[, sex], useNA = 'ifany')
+# 50-50.
+table(saaq_test[, age_grp], useNA = 'ifany')
+# 11 equal groups.
+table(saaq_test[, past_active], useNA = 'ifany')
+# 50-50.
+table(saaq_test[, past_active], saaq_test[, sex], useNA = 'ifany')
+# Equally divided by sex.
+table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
+# Equally divided across current points categories. 
+
+
+length(unique(saaq_test[, date]))
+# [1] 1826 days of driving.
+
+2*length(age_group_list)*2*length(curr_pts_grp_list)
+# [1] 616 combinations of categories per day.
+
+# All observations accounted for.
+nrow(saaq_test) == 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
+
+
+
+################################################################################
+# Stack the datasets and label by sample
+################################################################################
+
+saaq_train[, sample := 'train']
+saaq_test[, sample := 'test']
+saaq_data <- rbind(saaq_train, saaq_test)
+
+rm(list(saaq_train, saaq_test))
+
+
+################################################################################
+# Define additional variables
+################################################################################
 
 # Define categorical variables as factors.
-saaq_test[, sex := factor(sex, levels = c('M', 'F'))]
-saaq_test[, age_grp := factor(age_grp, levels = age_group_list)]
-saaq_test[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+saaq_data[, sex := factor(sex, levels = c('M', 'F'))]
+saaq_data[, age_grp := factor(age_grp, levels = age_group_list)]
+saaq_data[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
+# Define new variables for seasonality.
+saaq_data[, 'month'] <- substr(saaq_data[, 'date'], 6, 7)
+table(saaq_data[, 'month'], useNA = "ifany")
+
+# Weekday indicator.
+saaq_data[, 'weekday'] <- weekdays(saaq_data[, 'dinf'])
+table(saaq_data[, 'weekday'], useNA = "ifany")
+class(saaq_data[, 'weekday'])
+saaq_data[, 'weekday'] <- factor(saaq_data[, 'weekday'],
+                                 levels = weekday_list)
+class(saaq_data[, 'weekday'])
 
 
 ################################################################################
 # Fit a series of decision trees with increasing depth
 ################################################################################
 
+#-------------------------------------------------------------------------------
+# First version with all variables
+#-------------------------------------------------------------------------------
+
+
 # Fit a series of models.
 
 # Calculate AUROC in-sample and out-of-sample.
 
 # Output table of results.
+
+
+#-------------------------------------------------------------------------------
+# Second version after projection off key variables
+#-------------------------------------------------------------------------------
+
+
+
+#-------------------------------------------------------------------------------
+# Separate trees for males and females
+#-------------------------------------------------------------------------------
+
+
 
 
 ################################################################################

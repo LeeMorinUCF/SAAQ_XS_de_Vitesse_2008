@@ -43,9 +43,6 @@
 # Clear workspace, if running interactively.
 rm(list=ls(all=TRUE))
 
-# Load package for importing datasets in proprietary formats.
-library(foreign)
-
 # Load data table package for quick selection on seq.
 library(data.table)
 
@@ -294,15 +291,15 @@ summary(saaq_tickets[, c(join_var_list), with = FALSE])
 
 # The positive point balances come from here.
 summary(saaq_past_counts[, c(join_var_list), with = FALSE])
-# Notice the negative counts for the zero categories.
+# In earlier versions, there were negative counts for the zero categories.
 # These were accumulated as drivers swapped from zero to positive balances. 
 summary(saaq_past_counts[N < 0, N, by = curr_pts_grp])
-# All negative counts are in the zero categories.
+# No more negative counts remain in the zero categories.
 summary(saaq_past_counts[curr_pts_grp != 0, min(num), by = curr_pts_grp])
 # Confirmed. 
 
 
-# The drivers with zero point balances come from here.
+# The full count of drivers with zero point balances come from here.
 summary(driver_counts[, c(join_var_list), with = FALSE])
 
 
@@ -328,8 +325,11 @@ saaq_past_counts[, train_num := round(num*pct_train)]
 saaq_past_counts[, test_num := round(num*pct_test)]
 saaq_past_counts[, estn_num := round(num*pct_estn)]
 
-saaq_past_counts[, sample_sel := curr_pts_grp != 0 & 
-                   date >= sample_beg & 
+# Keep current points group if counts are initialized. 
+# saaq_past_counts[, sample_sel := curr_pts_grp != 0 & 
+#                    date >= sample_beg & 
+#                    date <= sample_end]
+saaq_past_counts[, sample_sel := date >= sample_beg & 
                    date <= sample_end]
 
 
@@ -345,12 +345,18 @@ driver_counts[, sample_sel := date >= sample_beg &
 
 
 # Select drivers to allocate tickets to samples. 
-seq_list <- unique(saaq_tickets[, c('seq'), with = FALSE])
-seq_sel_rand <- runif(length(seq_list))
+seq_list <- unique(saaq_tickets[, c('seq'), with = FALSE])[order(seq)]
+seq_list <- seq_list[, seq]
+seq_sel_rand <- runif(n = nrow(seq_list))
 
-seq_sel_train <- seq_sel_rand < pct_train
-seq_sel_test <- seq_sel_rand >= pct_train & seq_sel_rand < pct_train + pct_test
-seq_sel_estn <- seq_sel_rand >= 1 - pct_estn
+seq_sel_train <- seq_list[seq_sel_rand < pct_train]
+seq_sel_test <- seq_list[seq_sel_rand >= pct_train & 
+                           seq_sel_rand < pct_train + pct_test]
+seq_sel_estn <- seq_list[seq_sel_rand >= 1 - pct_estn]
+
+# Every driver is allocated to one and only one dataset.
+length(unique(c(seq_sel_train, seq_sel_test, seq_sel_estn))) == length(seq_list)
+
 
 # Select sample within specified dates.
 saaq_tickets[, sample_sel := date >= sample_beg & 
@@ -362,6 +368,9 @@ saaq_tickets[, train_sel := seq %in% seq_sel_train & sample_sel == TRUE]
 saaq_tickets[, test_sel := seq %in% seq_sel_test & sample_sel == TRUE]
 saaq_tickets[, estn_sel := seq %in% seq_sel_estn & sample_sel == TRUE]
 
+table(saaq_tickets[, train_sel], useNA = 'ifany')
+table(saaq_tickets[, test_sel], useNA = 'ifany')
+table(saaq_tickets[, estn_sel], useNA = 'ifany')
 
 
 #-------------------------------------------------------------------------------
@@ -373,6 +382,10 @@ saaq_train <- rbind(saaq_past_counts[sample_sel == TRUE, c(train_var_list), with
                    driver_counts[sample_sel == TRUE, c(train_var_list), with = FALSE], 
                    saaq_tickets[train_sel == TRUE, c(train_var_list), with = FALSE])
 colnames(saaq_train) <- join_var_list
+saaq_train <- saaq_train[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
+# Aggregate counts of zero balances from two data sources.
+saaq_train <- unique(saaq_train[, num := sum(num), 
+                                by = list(date, seq, sex, age_grp, past_active, curr_pts_grp, points)])
 
 
 # Testing dataset.
@@ -380,6 +393,10 @@ saaq_test <- rbind(saaq_past_counts[sample_sel == TRUE, c(test_var_list), with =
                     driver_counts[sample_sel == TRUE, c(test_var_list), with = FALSE], 
                     saaq_tickets[test_sel == TRUE, c(test_var_list), with = FALSE])
 colnames(saaq_test) <- join_var_list
+saaq_test <- saaq_test[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
+# Aggregate counts of zero balances from two data sources.
+saaq_test <- unique(saaq_test[, num := sum(num), 
+                              by = list(date, seq, sex, age_grp, past_active, curr_pts_grp, points)])
 
 
 # Estimation dataset.
@@ -387,6 +404,10 @@ saaq_estn <- rbind(saaq_past_counts[sample_sel == TRUE, c(estn_var_list), with =
                     driver_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
                     saaq_tickets[test_sel == TRUE, c(estn_var_list), with = FALSE])
 colnames(saaq_estn) <- join_var_list
+saaq_estn <- saaq_estn[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
+# Aggregate counts of zero balances from two data sources.
+saaq_estn <- unique(saaq_estn[, num := sum(num), 
+                              by = list(date, seq, sex, age_grp, past_active, curr_pts_grp, points)])
 
 
 
