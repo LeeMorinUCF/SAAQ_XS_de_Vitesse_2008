@@ -80,7 +80,7 @@ driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
 # pts_out_file_name <- 'saaq_pts.csv'
 pts_bal_file_name <- 'saaq_point_balances.csv'
 
-# Set name of output file for full dataset.
+# Set name of output file for training, testing and estimation samples.
 out_train_file_name <- 'saaq_train.csv'
 out_test_file_name <- 'saaq_test.csv'
 out_estn_file_name <- 'saaq_estn.csv'
@@ -410,17 +410,17 @@ colnames(saaq_estn) <- join_var_list
 
 
 # Training dataset.
-out_path_file_name <- sprintf('%s%s', data_out_path, out_train_file_name)
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_train_file_name)
 write.csv(x = saaq_train, file = out_path_file_name, row.names = FALSE)
 
 
 # Testing dataset.
-out_path_file_name <- sprintf('%s%s', data_out_path, out_test_file_name)
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_test_file_name)
 write.csv(x = saaq_test, file = out_path_file_name, row.names = FALSE)
 
 
 # Estimation dataset.
-out_path_file_name <- sprintf('%s%s', data_out_path, out_estn_file_name)
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_estn_file_name)
 write.csv(x = saaq_estn, file = out_path_file_name, row.names = FALSE)
 
 
