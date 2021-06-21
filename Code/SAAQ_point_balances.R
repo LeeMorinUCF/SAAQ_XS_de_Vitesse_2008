@@ -589,10 +589,27 @@ end_date_num <- which(date_list == end_date)
 date_num_list <- beg_date_num:end_date_num
 
 
-# Points groups may need to be converted to factors.
-# saaq_pts_chgs[, prev_pts_grp := factor(prev_pts_grp, levels = curr_pts_grp_list)]
-# saaq_pts_chgs[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
-
+# Initialize counts at zero point group.
+# Initialize counts with number of drivers in each category combination.
+date_curr <- date_list[beg_date_num]
+add_counts <- unique(saaq_point_hist[event_id == first_id, 
+                                     c('seq', 'sex', 'age_grp', 'past_active')])
+add_counts <- unique(add_counts[, .N, by = c('sex', 'age_grp', 'past_active')])
+add_counts[, curr_pts_grp := 0]
+# Change column order to match.
+add_counts <- add_counts[, c('sex', 'age_grp', 'past_active', 
+                                'curr_pts_grp', 'N')]
+# Pad list of changes with zero entries.
+add_counts <- rbind(add_counts, saaq_zero_curr)
+# Aggregate and sort.
+add_counts <- add_counts[, N := sum(N), 
+                         by = c('sex', 'age_grp', 'past_active', 
+                                'curr_pts_grp')]
+add_counts <- unique(add_counts)
+add_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+add_counts <- add_counts[order(sex, age_grp, past_active, curr_pts_grp)]
+# Add to initial balances in curr_pts_grp zero. 
+saaq_past_counts[date == date_curr, 'N'] <- add_counts[, 'N']
 
 
 # Loop on dates and calculate the totals.
@@ -656,7 +673,9 @@ for (date_num in date_num_list) {
   
   # if (date_num > date_num_list[1] | beg_date_num == 2) {
   if (date_num == date_num_list[1]) {
-    saaq_past_counts[date == date_curr, 'N'] <- - deduct_counts[, 'N']
+    saaq_past_counts[date == date_curr, 'N'] <- 
+      saaq_past_counts[date == date_curr, 'N'] - 
+      deduct_counts[, 'N']
   } else {
     saaq_past_counts[date == date_curr, 'N'] <- 
       saaq_past_counts[date == date_prev, 'N'] - 
