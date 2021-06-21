@@ -713,17 +713,17 @@ for (date_num in date_num_list) {
 
 }
 
-# Sum on each date should be zero.
+# Sum on each date should be zero (plus number of unique drivers = 3369249).
 # Drivers all swap in from zero points and swap to positive points.
 saaq_past_counts[, sum(N)] 
 saaq_past_counts[, sum(N), by = c('date')] 
 summary(saaq_past_counts[, sum(N), by = c('date')])
 
-# How many drivers remain at zero.
+# How many drivers remain at zero (none, now).
 saaq_past_counts[N < 0, sum(N)] 
 saaq_past_counts[N < 0, sum(N), by = c('date')] 
 saaq_past_counts[N > 0, sum(N), by = c('date')] 
-
+# Initial version skipped initialization to track changes.
 
 
 summary(saaq_past_counts[N > 0, sum(N), by = c('date')])
@@ -751,6 +751,8 @@ saaq_past_counts[N > 0, sum(N), by = c('date')]
 # That's really low. 
 # But it makes sense if most drivers are getting swapped back to zero.
 
+# Now counts are initialized at number of drivers, 
+# so the total count stays at a constant population. 
 
 
 # # Compare to the drivers with tickets in the last two years. 
