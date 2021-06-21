@@ -33,6 +33,9 @@ rm(list=ls(all=TRUE))
 # Load data table package for quick selection on seq.
 library(data.table)
 
+# Load rpart package for partitioning with regression trees.
+library(rpart)
+
 
 ################################################################################
 # Set parameters for file IO
@@ -84,6 +87,10 @@ weekday_list <- c('Sunday',
                   'Friday',
                   'Saturday')
 
+# Set date of policy change.
+april_fools_date <- '2008-04-01'
+# No joke: policy change on April Fool's Day!
+
 
 ################################################################################
 # Load Datasets
@@ -104,15 +111,15 @@ head(saaq_train, 618)
 
 
 table(saaq_train[, sex], useNA = 'ifany')
-# 50-50.
+
 table(saaq_train[, age_grp], useNA = 'ifany')
-# 11 equal groups.
+
 table(saaq_train[, past_active], useNA = 'ifany')
-# 50-50.
+
 table(saaq_train[, past_active], saaq_train[, sex], useNA = 'ifany')
-# Equally divided by sex.
+
 table(saaq_train[, curr_pts_grp], saaq_train[, past_active], useNA = 'ifany')
-# Equally divided across current points categories. 
+
 
 
 length(unique(saaq_train[, date]))
@@ -121,8 +128,8 @@ length(unique(saaq_train[, date]))
 2*length(age_group_list)*2*length(curr_pts_grp_list)
 # [1] 616 combinations of categories per day.
 
-# All observations accounted for.
-nrow(saaq_train) == 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
+# Observations added with observed tickets.
+nrow(saaq_train) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 
 
 #-------------------------------------------------------------------------------
@@ -140,15 +147,15 @@ head(saaq_test, 618)
 
 
 table(saaq_test[, sex], useNA = 'ifany')
-# 50-50.
+
 table(saaq_test[, age_grp], useNA = 'ifany')
-# 11 equal groups.
+
 table(saaq_test[, past_active], useNA = 'ifany')
-# 50-50.
+
 table(saaq_test[, past_active], saaq_test[, sex], useNA = 'ifany')
-# Equally divided by sex.
+
 table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
-# Equally divided across current points categories. 
+
 
 
 length(unique(saaq_test[, date]))
@@ -157,8 +164,8 @@ length(unique(saaq_test[, date]))
 2*length(age_group_list)*2*length(curr_pts_grp_list)
 # [1] 616 combinations of categories per day.
 
-# All observations accounted for.
-nrow(saaq_test) == 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
+# Observations added with observed tickets.
+nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 
 
 
@@ -170,7 +177,7 @@ saaq_train[, sample := 'train']
 saaq_test[, sample := 'test']
 saaq_data <- rbind(saaq_train, saaq_test)
 
-rm(list(saaq_train, saaq_test))
+rm(saaq_train, saaq_test)
 
 
 ################################################################################
@@ -183,16 +190,20 @@ saaq_data[, age_grp := factor(age_grp, levels = age_group_list)]
 saaq_data[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 # Define new variables for seasonality.
-saaq_data[, 'month'] <- substr(saaq_data[, 'date'], 6, 7)
+# Numeric indicator for month. 
+# saaq_data[, 'month'] <- substr(saaq_data[, 'date'], 6, 7)
+saaq_data[, month := substr(date, 6, 7)]
 table(saaq_data[, 'month'], useNA = "ifany")
 
 # Weekday indicator.
-saaq_data[, 'weekday'] <- weekdays(saaq_data[, 'dinf'])
+saaq_data[, weekday := weekdays(date)]
 table(saaq_data[, 'weekday'], useNA = "ifany")
-class(saaq_data[, 'weekday'])
-saaq_data[, 'weekday'] <- factor(saaq_data[, 'weekday'],
-                                 levels = weekday_list)
-class(saaq_data[, 'weekday'])
+class(saaq_data[, weekday])
+saaq_data[, weekday := factor(weekday, levels = weekday_list)]
+class(saaq_data[, weekday])
+
+# Last, but not least, define the indicator for the policy change.
+saaq_data[, policy := date >= april_fools_date]
 
 
 ################################################################################
@@ -203,8 +214,50 @@ class(saaq_data[, 'weekday'])
 # First version with all variables
 #-------------------------------------------------------------------------------
 
-
 # Fit a series of models.
+
+# Predict for any ticket value.
+pts_target <- 'all'
+# All violations combined.
+saaq_data[, events := points > 0]
+
+colnames(saaq_data)
+var_list <- c('policy', 'month', 'weekday', 
+              'sex', 'age_grp', 
+              # 'past_active', 
+              'curr_pts_grp')
+
+# Summarize data before estimation.
+summary(saaq_data[sample == 'train', c('events', var_list), with = FALSE])
+
+# Define candidate variables.
+fmla <- as.formula(sprintf('events ~ %s',
+                           paste(var_list, collapse = " + ")))
+
+# Set controls for regression tree. 
+rpart_ctrl <- rpart.control(minsplit = 20, 
+                            # minbucket = round(minsplit/3), 
+                            # cp = 0.01, 
+                            # cp = 10^(-200), 
+                            cp = 10^(-6), 
+                            # maxcompete = 4, 
+                            maxcompete = 0, 
+                            # maxsurrogate = 5, 
+                            maxsurrogate = 0, 
+                            usesurrogate = 2, 
+                            xval = 10,
+                            surrogatestyle = 0, 
+                            maxdepth = 30)
+
+# Fit a regression tree.
+rpart_tree <- rpart(formula = fmla, 
+                    data = saaq_data[sample == 'train', ], weights = num, 
+                    method = 'anova', 
+                    control = rpart_ctrl)
+
+summary(rpart_tree)
+
+
 
 # Calculate AUROC in-sample and out-of-sample.
 
@@ -214,6 +267,54 @@ class(saaq_data[, 'weekday'])
 #-------------------------------------------------------------------------------
 # Second version after projection off key variables
 #-------------------------------------------------------------------------------
+
+# Regression on seasonal indicators.
+# and categorical variables without interactions. 
+first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp')
+# Define candidate variables.
+fmla <- as.formula(sprintf('events ~ %s',
+                           paste(first_var_list, collapse = " + ")))
+
+first_lm <- lm(formula = fmla, 
+               data = saaq_data[sample == 'train', ], weights = num)
+
+summary(first_lm)
+
+
+# Calculate residuals to predict with regression trees.
+saaq_data[, fit := predict(first_lm, newdata = saaq_data)]
+
+summary(saaq_data)
+
+
+saaq_data[, resid := events - fit]
+
+
+# Define candidate variables.
+fmla <- as.formula(sprintf('resid ~ %s',
+                           paste(var_list, collapse = " + ")))
+
+# Set controls for regression tree. 
+rpart_ctrl <- rpart.control(minsplit = 20, 
+                            # minbucket = round(minsplit/3), 
+                            # cp = 0.01, 
+                            cp = 10^(-6), 
+                            # maxcompete = 4, 
+                            maxcompete = 0, 
+                            # maxsurrogate = 5, 
+                            maxsurrogate = 0, 
+                            usesurrogate = 2, 
+                            xval = 10,
+                            surrogatestyle = 0, 
+                            maxdepth = 30)
+
+# Fit a regression tree.
+rpart_tree <- rpart(formula = fmla, 
+                    data = saaq_data[sample == 'train', ], weights = num, 
+                    method = 'anova', 
+                    control = rpart_ctrl)
+
+summary(rpart_tree)
 
 
 
