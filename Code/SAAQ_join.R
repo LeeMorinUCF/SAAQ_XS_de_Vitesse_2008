@@ -112,8 +112,13 @@ max(date_list)
 
 
 # Age group categories for defining factors.
-age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
-                    '55-64', '65-74', '75-84', '85-89', '90-199')
+# Original finer grouping to match driver counts: 
+# age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
+#                     '55-64', '65-74', '75-84', '85-89', '90-199')
+# Coarser grouping to merge less-populated age groups:
+age_group_list <- c('0-19', 
+                    '20-24', '25-34', '35-44', '45-54',
+                    '55-64', '65-199')
 
 # Current points group categories for defining factors.
 curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
@@ -165,7 +170,10 @@ driver_counts[, past_active := FALSE]
 
 # Define categorical variables as factors.
 driver_counts[, sex := factor(sex, levels = c('M', 'F'))]
+driver_counts[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
+driver_counts[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 driver_counts[, age_grp := factor(age_grp, levels = age_group_list)]
+driver_counts <- unique(driver_counts[, num := sum(num), by = c('date', 'age_grp', 'sex')])
 driver_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 
@@ -217,6 +225,8 @@ saaq_past_counts[, seq := 0]
 
 # Define categorical variables as factors.
 saaq_past_counts[, sex := factor(sex, levels = c('M', 'F'))]
+saaq_past_counts[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
+saaq_past_counts[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 saaq_past_counts[, age_grp := factor(age_grp, levels = age_group_list)]
 saaq_past_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
@@ -226,7 +236,8 @@ summary(saaq_past_counts[, c(join_var_list), with = FALSE])
 # Recall that negative values are drivers swapping in from 
 # the zero-point category. 
 # These will be canceled out later, when driver counts are added in. 
-# These are already cancelled out. 
+# These are already canceled out by initializing the balances. 
+# They are removed from the counts of inactive drivers below.
 
 
 #-------------------------------------------------------------------------------
@@ -270,6 +281,8 @@ lapply(saaq_tickets, class)
 
 # Define categorical variables as factors.
 saaq_tickets[, sex := factor(sex, levels = c('M', 'F'))]
+saaq_tickets[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
+saaq_tickets[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 saaq_tickets[, age_grp := factor(age_grp, levels = age_group_list)]
 saaq_tickets[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
@@ -278,7 +291,41 @@ saaq_tickets[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 summary(saaq_tickets[, c(join_var_list), with = FALSE])
 
 
+################################################################################
+# Adjust counts of licensed drivers for distribution across
+# point-balance categories
+################################################################################
 
+# Obtain counts of drivers who left the curr_pts_grp == 0 category.
+# That is, all drivers who got a ticket at some point.
+# These are already contained in saaq_past_counts and should be removed from
+# driver_counts to avoid double-counting these drivers.
+non_zero_counts <- unique(saaq_tickets[, c('seq', 'sex', 'age_grp')])
+non_zero_counts <- unique(non_zero_counts[, .N, by = c('sex', 'age_grp')])
+# non_zero_counts[, curr_pts_grp := 0]
+# Change column order to match.
+# non_zero_counts <- non_zero_counts[, c('sex', 'age_grp', 'curr_pts_grp', 'N')]
+# non_zero_counts <- non_zero_counts[, c('sex', 'age_grp', 'N')]
+# Skip adding the zeros for now.
+# non_zero_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+# non_zero_counts <- non_zero_counts[order(sex, age_grp, curr_pts_grp)]
+non_zero_counts <- non_zero_counts[order(sex, age_grp)]
+
+
+# Subtract these active drivers from the total count of drivers.
+for (row in 1:nrow(non_zero_counts)) {
+  sex_sel <- non_zero_counts[row, sex]
+  age_grp_sel <- non_zero_counts[row, age_grp]
+  num_non_zero <- non_zero_counts[row, N]
+  
+  # Note that all inactive drivers have zero points, curr_pts_grp == 0,  
+  # past_active == FALSE and seq == 0. 
+  driver_counts[sex == sex_sel & age_grp == age_grp_sel, num := num - num_non_zero]
+}
+
+# Only the inactive drivers will remain.
+
+summary(driver_counts)
 
 
 ################################################################################

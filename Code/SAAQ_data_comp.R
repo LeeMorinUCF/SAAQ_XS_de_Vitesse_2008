@@ -594,7 +594,7 @@ saaq_train_test[date >= sample_beg & date <= sample_end,
 # add_counts <- add_counts[order(sex, age_grp, past_active, curr_pts_grp)]
 
 
-# Simplify and calculate without past_active:
+# Simplify and calculate without past_active (none are past_active in driver counts):
 add_counts <- unique(saaq_point_hist[event_id == first_id, 
                                      c('seq', 'sex', 'age_grp')])
 add_counts <- unique(add_counts[, .N, by = c('sex', 'age_grp')])
@@ -607,8 +607,21 @@ add_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 add_counts <- add_counts[order(sex, age_grp, curr_pts_grp)]
 
 
+# Coarser grouping to merge less-populated age groups:
+age_group_list <- c('0-19', 
+                    '20-24', '25-34', '35-44', '45-54',
+                    '55-64', '65-199')
+
+
+# Take numbers directly from tickets dataset. 
+non_zero_counts <- unique(saaq_tickets[, c('seq', 'sex', 'age_grp')])
+non_zero_counts <- unique(non_zero_counts[, .N, by = c('sex', 'age_grp')])
+non_zero_counts <- non_zero_counts[order(sex, age_grp)]
+
+
+
 #--------------------------------------------------------------------------------
-# Now load the driver counts (number of licenced drivers).
+# Now load the driver counts (number of licensed drivers).
 #--------------------------------------------------------------------------------
 
 driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
@@ -618,11 +631,11 @@ driver_counts <- fread(in_path_file_name)
 
 # Need to add empty column of curr_pts_grp to
 # default population with no tickets.
-driver_counts[, curr_pts_grp := 0]
+# driver_counts[, curr_pts_grp := 0]
 
 # Also need to add empty column of past_active to
 # default population with no tickets.
-driver_counts[, past_active := FALSE]
+# driver_counts[, past_active := FALSE]
 
 # Standardize date variable.
 # driver_counts[, date := dinf]
@@ -630,33 +643,43 @@ driver_counts[, past_active := FALSE]
 
 # Define categorical variables as factors.
 driver_counts[, sex := factor(sex, levels = c('M', 'F'))]
+driver_counts[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
+driver_counts[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 driver_counts[, age_grp := factor(age_grp, levels = age_group_list)]
-driver_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+driver_counts <- unique(driver_counts[, num := sum(num), by = c('date', 'age_grp', 'sex')])
+# driver_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 
 # summary(driver_counts)
 colnames(driver_counts)
 lapply(driver_counts, class)
 
-summary(driver_counts[, c(join_var_list), with = FALSE])
+# summary(driver_counts[, c(join_var_list), with = FALSE])
+summary(driver_counts)
 
 
 # Trim some fat off of the driver counts.
 
 # Focus on sample period.
 driver_counts <- driver_counts[date >= sample_beg & date <= sample_end, ]
-driver_counts <- driver_counts[,c('date', 'sex', 'age_grp', 'curr_pts_grp', 'num'), 
+# driver_counts <- driver_counts[,c('date', 'sex', 'age_grp', 'curr_pts_grp', 'num'), 
+#                                with = FALSE]
+# driver_counts[, avg := mean(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+# driver_counts[, min := min(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+# driver_counts[, max := max(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+driver_counts <- driver_counts[,c('date', 'sex', 'age_grp', 'num'), 
                                with = FALSE]
-driver_counts[, avg := mean(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
-driver_counts[, min := min(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
-driver_counts[, max := max(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+driver_counts[, avg := mean(num), by = c('sex', 'age_grp')]
+driver_counts[, min := min(num), by = c('sex', 'age_grp')]
+driver_counts[, max := max(num), by = c('sex', 'age_grp')]
 
 # Drop unique variables after stats are calculated.
 driver_counts[, num := NULL]
 driver_counts[, date := NULL]
 
 driver_counts <- unique(driver_counts)
-driver_counts <- driver_counts[order(sex, age_grp, curr_pts_grp)]
+# driver_counts <- driver_counts[order(sex, age_grp, curr_pts_grp)]
+driver_counts <- driver_counts[order(sex, age_grp)]
 
 
 
@@ -664,11 +687,14 @@ driver_counts <- driver_counts[order(sex, age_grp, curr_pts_grp)]
 # Now compare this to the driver counts (number of licenced drivers).
 #--------------------------------------------------------------------------------
 
-add_counts
+# add_counts
+non_zero_counts
 driver_counts
 
-count_comp <- cbind(driver_counts, add_counts[, N])
-colnames(count_comp)[7] <- 'num'
+# count_comp <- cbind(driver_counts, add_counts[, N])
+# colnames(count_comp)[7] <- 'num'
+count_comp <- cbind(driver_counts, non_zero_counts[, N])
+colnames(count_comp)[6] <- 'num'
 
 count_comp[, diff_avg := avg - num]
 count_comp[, diff_min := min - num]
