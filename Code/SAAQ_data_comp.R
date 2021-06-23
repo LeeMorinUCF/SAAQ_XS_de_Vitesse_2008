@@ -578,5 +578,115 @@ saaq_train_test[date >= sample_beg & date <= sample_end,
 
 
 ################################################################################
+# Analysis of counts in demographic categories
+################################################################################
+
+# From SAAQ_point_balances.R:
+# add_counts <- unique(saaq_point_hist[event_id == first_id, 
+#                                      c('seq', 'sex', 'age_grp', 'past_active')])
+# add_counts <- unique(add_counts[, .N, by = c('sex', 'age_grp', 'past_active')])
+# add_counts[, curr_pts_grp := 0]
+# # Change column order to match.
+# add_counts <- add_counts[, c('sex', 'age_grp', 'past_active', 
+#                              'curr_pts_grp', 'N')]
+# # Skip adding the zeros for now.
+# add_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+# add_counts <- add_counts[order(sex, age_grp, past_active, curr_pts_grp)]
+
+
+# Simplify and calculate without past_active:
+add_counts <- unique(saaq_point_hist[event_id == first_id, 
+                                     c('seq', 'sex', 'age_grp')])
+add_counts <- unique(add_counts[, .N, by = c('sex', 'age_grp')])
+add_counts[, curr_pts_grp := 0]
+# Change column order to match.
+add_counts <- add_counts[, c('sex', 'age_grp', 
+                             'curr_pts_grp', 'N')]
+# Skip adding the zeros for now.
+add_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+add_counts <- add_counts[order(sex, age_grp, curr_pts_grp)]
+
+
+#--------------------------------------------------------------------------------
+# Now load the driver counts (number of licenced drivers).
+#--------------------------------------------------------------------------------
+
+driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
+in_path_file_name <- sprintf('%s/%s', data_in_path, driver_counts_file_name)
+driver_counts <- fread(in_path_file_name)
+
+
+# Need to add empty column of curr_pts_grp to
+# default population with no tickets.
+driver_counts[, curr_pts_grp := 0]
+
+# Also need to add empty column of past_active to
+# default population with no tickets.
+driver_counts[, past_active := FALSE]
+
+# Standardize date variable.
+driver_counts[, date := dinf]
+
+
+# Define categorical variables as factors.
+driver_counts[, sex := factor(sex, levels = c('M', 'F'))]
+driver_counts[, age_grp := factor(age_grp, levels = age_group_list)]
+driver_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+
+
+# summary(driver_counts)
+colnames(driver_counts)
+lapply(driver_counts, class)
+
+summary(driver_counts[, c(join_var_list), with = FALSE])
+
+
+# Trim some fat off of the driver counts.
+
+# Focus on sample period.
+driver_counts <- driver_counts[date >= sample_beg & date <= sample_end, ]
+driver_counts <- driver_counts[,c('date', 'sex', 'age_grp', 'curr_pts_grp', 'num'), 
+                               with = FALSE]
+driver_counts[, avg := mean(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+driver_counts[, min := min(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+driver_counts[, max := max(num), by = c('sex', 'age_grp', 'curr_pts_grp')]
+
+# Drop unique variables after stats are calculated.
+driver_counts[, num := NULL]
+driver_counts[, date := NULL]
+
+driver_counts <- unique(driver_counts)
+driver_counts <- driver_counts[order(sex, age_grp, curr_pts_grp)]
+
+
+
+#--------------------------------------------------------------------------------
+# Now compare this to the driver counts (number of licenced drivers).
+#--------------------------------------------------------------------------------
+
+add_counts
+driver_counts
+
+count_comp <- cbind(driver_counts, add_counts[, N])
+colnames(count_comp)[7] <- 'num'
+
+count_comp[, diff_avg := avg - num]
+count_comp[, diff_min := min - num]
+count_comp[, diff_max := max - num]
+
+# Some small negative counts in the subcategories age 65+.
+# Other than that, only males age 16-19 have at most 3385 drivers with
+# tickets above the driver counts. 
+# This amounts to 3-5% above the number of licensed drivers. 
+# These are teenagers who are stealing mom's car when the parents are out of town. 
+# Many teenage boys drive a car and get a ticket without a license. 
+
+count_comp[, sum(num)]
+count_comp[, sum(num), by = c('sex')]
+
+
+
+
+################################################################################
 # End
 ################################################################################

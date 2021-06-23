@@ -290,7 +290,7 @@ head(saaq_point_hist, 20)
 
 # For recording the transitions between point balance categories, 
 # current points include today's ticket(s),
-# previous points include all point changes upt to midnight yesterday night. 
+# previous points include all point changes up to midnight yesterday night. 
 saaq_point_hist[, prev_pts := curr_pts - points]
 
 
@@ -341,6 +341,7 @@ table(saaq_point_hist[, prev_pts_grp], useNA = 'ifany')
 # colnames(saaq_point_hist)
 # saaq_point_hist[, pre_policy := date < as.Date('2008-04-01')]
 saaq_point_hist[, pre_policy := date < as.Date(april_fools_2008)]
+# saaq_point_hist[, pre_policy := dinf < as.Date(april_fools_2008)]
 table(saaq_point_hist[, pre_policy], useNA = 'ifany')
 # Pre-policy period is much longer with an asymmetric window. 
 
@@ -349,7 +350,8 @@ table(saaq_point_hist[, pre_policy], useNA = 'ifany')
 #                                              pre_policy == TRUE, seq])
 past_active_list <- unique(saaq_point_hist[prev_pts_grp %in% past_active_pts_list &
                                              pre_policy == TRUE, seq])
-
+# Note that this variable is not used for prediction.
+# It is used for classifying a subsample.
 
 # Allocate drivers to the list of those with an active past. 
 saaq_point_hist[, past_active := seq %in% past_active_list]
@@ -359,12 +361,13 @@ saaq_point_hist[, past_active := seq %in% past_active_list]
 length(unique(saaq_point_hist[, seq]))
 # [1] 3369249
 length(past_active_list)
-# [1] 795169
+# [1] 795169 # Current
+# [1] 723606 # Previous
 # About a quarter of the sample of drivers.
 # Good: Not too many. Not too few.
 
 table(saaq_point_hist[, past_active], useNA = 'ifany')
-# Based on currecnt points (including today's):
+# Based on current points (including today's):
 # FALSE     TRUE 
 # 10358098 10732848 
 # Based on previous points:
@@ -447,7 +450,7 @@ quantile(saaq_point_hist[, curr_pts], probs = seq(0.99, 1, by = 0.001))
 # Need to select current and previous category for each driver-day. 
 
 # Add indicator for event. 
-colnames(saaq_point_hist)
+# colnames(saaq_point_hist)
 saaq_point_hist[, 'event_id'] <- seq(nrow(saaq_point_hist))
 
 # Each driver-day, record the first id and last id.
@@ -523,6 +526,7 @@ colnames(saaq_pts_chgs) <- c('date', 'sex', 'age_grp', 'past_active',
 summary(saaq_pts_chgs)
 
 # Points groups need to be converted to factors.
+# And levels must be defined in order, so that counts of transitions match in rows. 
 saaq_pts_chgs[, prev_pts_grp := factor(prev_pts_grp, levels = curr_pts_grp_list)]
 saaq_pts_chgs[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
