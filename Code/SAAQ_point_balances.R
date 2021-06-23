@@ -138,9 +138,16 @@ colnames(saaq_point_hist)
 
 
 
-# Change name of date variable (since not all will be infractions).
+# Create alternate name of date variable (since not all will be infractions).
 saaq_point_hist[, date := dinf]
 # colnames(saaq_point_hist)[6] <- 'date'
+# The column "dinf" refers to the date of an infraction, 
+# and is used to keep track of events.
+# The column "date" is used to keep track of the counts of 
+# drivers at each point balance level.
+
+# Eventually (at the end of this script and in the modeling to follow),
+# all events are time-stamped by the same "date" variable.
 
 
 #--------------------------------------------------------------------------------
@@ -182,9 +189,6 @@ summary(saaq_point_hist)
 # Add events for removal of points after expiry two years later.
 #--------------------------------------------------------------------------------
 
-# Change name of date variable (since not all will be infractions).
-# saaq_point_hist[, date := date]
-
 
 # Sort by date and seq.
 saaq_point_hist <- saaq_point_hist[order(seq, date), ]
@@ -205,6 +209,8 @@ saaq_point_hist_2 <- copy(saaq_point_hist)
 
 
 # Translate into the drops in points two years later.
+# Notice that this uses the "date" date variable, 
+# which is used to keep track of drivers at different point balances.
 saaq_point_hist_2[, date := as.Date(date + 730)]
 saaq_point_hist[, date := as.Date(date)] # Change original date to match class.
 

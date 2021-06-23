@@ -132,6 +132,11 @@ length(unique(saaq_train[, date]))
 nrow(saaq_train) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 
 
+# Tabulate the points, which are the events to be predicted.
+# saaq_train[date >= sample_beg & date <= sample_end, 
+#                 sum(as.numeric(num)), by = points][order(points)]
+
+
 #-------------------------------------------------------------------------------
 # Load Testing Dataset
 #-------------------------------------------------------------------------------
@@ -168,6 +173,10 @@ length(unique(saaq_test[, date]))
 nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 
 
+# Tabulate the points, which are the events to be predicted.
+# saaq_test[date >= sample_beg & date <= sample_end,
+#           sum(as.numeric(num)), by = points][order(points)]
+
 
 ################################################################################
 # Stack the datasets and label by sample
@@ -178,6 +187,10 @@ saaq_test[, sample := 'test']
 saaq_data <- rbind(saaq_train, saaq_test)
 
 rm(saaq_train, saaq_test)
+
+
+# saaq_data[date >= sample_beg & date <= sample_end,
+#           sum(as.numeric(num)), by = points][order(points)]
 
 
 ################################################################################
@@ -204,6 +217,17 @@ class(saaq_data[, weekday])
 
 # Last, but not least, define the indicator for the policy change.
 saaq_data[, policy := date >= april_fools_date]
+
+
+
+summary(saaq_data[month == '06', date])
+summary(saaq_data[policy == TRUE, date])
+summary(saaq_data[policy == FALSE, date])
+
+
+# saaq_data[date >= sample_beg & date <= sample_end,
+#           sum(as.numeric(num)), by = points][order(points)]
+
 
 
 ################################################################################
@@ -270,13 +294,21 @@ summary(rpart_tree)
 
 # Regression on seasonal indicators.
 # and categorical variables without interactions. 
-first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp')
+# first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp')
+# first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp', 
+#                     'policy', 'policy*sex', 'policy*age_grp')
+first_var_list <- c('month', 'weekday', 'age_grp', 'curr_pts_grp', 
+                    'policy', 'policy*age_grp')
 # Define candidate variables.
 fmla <- as.formula(sprintf('events ~ %s',
                            paste(first_var_list, collapse = " + ")))
 
 first_lm <- lm(formula = fmla, 
-               data = saaq_data[sample == 'train', ], weights = num)
+               # data = saaq_data[sample == 'train', ], 
+               # data = saaq_data, # Full sample.
+               # data = saaq_data[sex == 'M'], # Full sample of male drivers.
+               data = saaq_data[sex == 'F'], # Full sample of male drivers.
+               weights = num)
 
 summary(first_lm)
 
@@ -284,7 +316,7 @@ summary(first_lm)
 # Calculate residuals to predict with regression trees.
 saaq_data[, fit := predict(first_lm, newdata = saaq_data)]
 
-summary(saaq_data)
+# summary(saaq_data)
 
 
 saaq_data[, resid := events - fit]

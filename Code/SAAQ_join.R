@@ -91,12 +91,13 @@ set.seed(42)
 ################################################################################
 
 # Parameters for dividing data into samples.
-sample_beg <- '2006-01-01'
-sample_end <- '2010-12-31'
+sample_beg <- '2006-04-01'
+sample_end <- '2010-03-31'
 
-pct_train <- 0.40
+pct_train <- 0.70
 pct_test <- 0.30
-pct_estn <- 0.30
+# pct_estn <- 0.30
+pct_estn <- max(1 - pct_train - pct_test, 0)
 
 
 # Create rows for list of dates.
@@ -224,7 +225,7 @@ summary(saaq_past_counts[, c(join_var_list), with = FALSE])
 # Recall that negative values are drivers swapping in from 
 # the zero-point category. 
 # These will be canceled out later, when driver counts are added in. 
-
+# These are already cancelled out. 
 
 
 #-------------------------------------------------------------------------------
@@ -347,15 +348,16 @@ driver_counts[, sample_sel := date >= sample_beg &
 # Select drivers to allocate tickets to samples. 
 seq_list <- unique(saaq_tickets[, c('seq'), with = FALSE])[order(seq)]
 seq_list <- seq_list[, seq]
-seq_sel_rand <- runif(n = nrow(seq_list))
+seq_sel_rand <- runif(n = length(seq_list))
 
-seq_sel_train <- seq_list[seq_sel_rand < pct_train]
-seq_sel_test <- seq_list[seq_sel_rand >= pct_train & 
-                           seq_sel_rand < pct_train + pct_test]
-seq_sel_estn <- seq_list[seq_sel_rand >= 1 - pct_estn]
+seq_sel_train <- seq_list[seq_sel_rand <= pct_train]
+seq_sel_test <- seq_list[seq_sel_rand > pct_train & 
+                           seq_sel_rand <= pct_train + pct_test]
+seq_sel_estn <- seq_list[seq_sel_rand > 1 - pct_estn]
 
 # Every driver is allocated to one and only one dataset.
 length(unique(c(seq_sel_train, seq_sel_test, seq_sel_estn))) == length(seq_list)
+length(c(seq_sel_train, seq_sel_test, seq_sel_estn)) == length(seq_list)
 
 
 # Select sample within specified dates.
@@ -371,6 +373,10 @@ saaq_tickets[, estn_sel := seq %in% seq_sel_estn & sample_sel == TRUE]
 table(saaq_tickets[, train_sel], useNA = 'ifany')
 table(saaq_tickets[, test_sel], useNA = 'ifany')
 table(saaq_tickets[, estn_sel], useNA = 'ifany')
+
+
+table(saaq_tickets[, train_sel], 
+      saaq_tickets[, test_sel], useNA = 'ifany')
 
 
 #-------------------------------------------------------------------------------
@@ -402,7 +408,7 @@ saaq_test <- unique(saaq_test[, num := sum(num),
 # Estimation dataset.
 saaq_estn <- rbind(saaq_past_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
                     driver_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
-                    saaq_tickets[test_sel == TRUE, c(estn_var_list), with = FALSE])
+                    saaq_tickets[estn_sel == TRUE, c(estn_var_list), with = FALSE])
 colnames(saaq_estn) <- join_var_list
 saaq_estn <- saaq_estn[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
 # Aggregate counts of zero balances from two data sources.
@@ -441,8 +447,10 @@ write.csv(x = saaq_test, file = out_path_file_name, row.names = FALSE)
 
 
 # Estimation dataset.
-out_path_file_name <- sprintf('%s/%s', data_out_path, out_estn_file_name)
-write.csv(x = saaq_estn, file = out_path_file_name, row.names = FALSE)
+if (pct_estn > 0) {
+  out_path_file_name <- sprintf('%s/%s', data_out_path, out_estn_file_name)
+  write.csv(x = saaq_estn, file = out_path_file_name, row.names = FALSE) 
+}
 
 
 
