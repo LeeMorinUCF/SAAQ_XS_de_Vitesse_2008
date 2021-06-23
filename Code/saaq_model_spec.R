@@ -72,8 +72,12 @@ set.seed(42)
 
 
 # Age group categories for defining factors.
-age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
-                    '55-64', '65-74', '75-84', '85-89', '90-199')
+# age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
+#                     '55-64', '65-74', '75-84', '85-89', '90-199')
+# Coarser grouping to merge less-populated age groups:
+age_group_list <- c('0-19', 
+                    '20-24', '25-34', '35-44', '45-54',
+                    '55-64', '65-199')
 
 # Current points group categories for defining factors.
 curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
@@ -107,7 +111,7 @@ saaq_train <- fread(in_path_file_name)
 summary(saaq_train)
 
 summary(saaq_train[, .N, by = date])
-head(saaq_train, 618)
+head(saaq_train, 394)
 
 
 table(saaq_train[, sex], useNA = 'ifany')
@@ -123,10 +127,10 @@ table(saaq_train[, curr_pts_grp], saaq_train[, past_active], useNA = 'ifany')
 
 
 length(unique(saaq_train[, date]))
-# [1] 1826 days of driving.
+# [1] 1461 days of driving.
 
 2*length(age_group_list)*2*length(curr_pts_grp_list)
-# [1] 616 combinations of categories per day.
+# [1] 392 combinations of categories per day.
 
 # Observations added with observed tickets.
 nrow(saaq_train) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
@@ -148,7 +152,7 @@ saaq_test <- fread(in_path_file_name)
 summary(saaq_test)
 
 summary(saaq_test[, .N, by = date])
-head(saaq_test, 618)
+head(saaq_test, 394)
 
 
 table(saaq_test[, sex], useNA = 'ifany')
@@ -164,10 +168,10 @@ table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
 
 
 length(unique(saaq_test[, date]))
-# [1] 1826 days of driving.
+# [1] 1461 days of driving.
 
 2*length(age_group_list)*2*length(curr_pts_grp_list)
-# [1] 616 combinations of categories per day.
+# [1] 392 combinations of categories per day.
 
 # Observations added with observed tickets.
 nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
@@ -191,6 +195,7 @@ rm(saaq_train, saaq_test)
 
 # saaq_data[date >= sample_beg & date <= sample_end,
 #           sum(as.numeric(num)), by = points][order(points)]
+saaq_data[, sum(as.numeric(num)), by = points][order(points)]
 
 
 ################################################################################
@@ -206,14 +211,15 @@ saaq_data[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 # Numeric indicator for month. 
 # saaq_data[, 'month'] <- substr(saaq_data[, 'date'], 6, 7)
 saaq_data[, month := substr(date, 6, 7)]
+month_list <- unique(saaq_data[, month])
+month_list <- month_list[order(month_list)]
+saaq_data[, month := factor(month, levels = month_list)]
 table(saaq_data[, 'month'], useNA = "ifany")
 
 # Weekday indicator.
 saaq_data[, weekday := weekdays(date)]
-table(saaq_data[, 'weekday'], useNA = "ifany")
-class(saaq_data[, weekday])
 saaq_data[, weekday := factor(weekday, levels = weekday_list)]
-class(saaq_data[, weekday])
+table(saaq_data[, 'weekday'], useNA = "ifany")
 
 # Last, but not least, define the indicator for the policy change.
 saaq_data[, policy := date >= april_fools_date]
@@ -305,9 +311,9 @@ fmla <- as.formula(sprintf('events ~ %s',
 
 first_lm <- lm(formula = fmla, 
                # data = saaq_data[sample == 'train', ], 
-               # data = saaq_data, # Full sample.
+               data = saaq_data, # Full sample.
                # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-               data = saaq_data[sex == 'F'], # Full sample of male drivers.
+               # data = saaq_data[sex == 'F'], # Full sample of male drivers.
                weights = num)
 
 summary(first_lm)

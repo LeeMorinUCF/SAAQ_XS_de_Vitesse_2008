@@ -142,7 +142,7 @@ colnames(saaq_point_hist)
 saaq_point_hist[, date := dinf]
 # colnames(saaq_point_hist)[6] <- 'date'
 # The column "dinf" refers to the date of an infraction, 
-# and is used to keep track of events.
+# and is used to keep track of all events, both tickets and expiries.
 # The column "date" is used to keep track of the counts of 
 # drivers at each point balance level.
 
@@ -201,7 +201,8 @@ head(saaq_point_hist, 10)
 
 
 # Calculate cumulative points total by driver.
-saaq_point_hist_2 <- copy(saaq_point_hist)
+# Copy the dataset to calculate a record of expiries of tickets.
+saaq_point_hist_exp <- copy(saaq_point_hist)
 # By default, data.table makes a shallow copy. 
 # We need a deep copy, since we truly want a duplicate table
 # but want to lead the dates 2 years and reverse the demerit points, 
@@ -211,21 +212,21 @@ saaq_point_hist_2 <- copy(saaq_point_hist)
 # Translate into the drops in points two years later.
 # Notice that this uses the "date" date variable, 
 # which is used to keep track of drivers at different point balances.
-saaq_point_hist_2[, date := as.Date(date + 730)]
+saaq_point_hist_exp[, date := as.Date(date + 730)]
 saaq_point_hist[, date := as.Date(date)] # Change original date to match class.
 
 # Negative points two years later will subtract
 # expiring points from two-year balance.
-saaq_point_hist_2[, points := - points]
+saaq_point_hist_exp[, points := - points]
 
 
 # Verify accuracy of points. 
 head(saaq_point_hist, 10)
-head(saaq_point_hist_2, 10)
+head(saaq_point_hist_exp, 10)
 
 
 # Append the original observations, then sort.
-saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_2)
+saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_exp)
 
 saaq_point_hist <- saaq_point_hist[order(seq,
                          date,
@@ -233,7 +234,7 @@ saaq_point_hist <- saaq_point_hist[order(seq,
 head(saaq_point_hist, 10)
 
 # Remove the duplicate, which is no longer needed after joining. 
-rm(saaq_point_hist_2)
+rm(saaq_point_hist_exp)
 
 
 
@@ -255,7 +256,7 @@ head(saaq_point_hist, 20)
 # Then compare with saaq to verify accuracy.
 # summary(saaq)
 # summary(saaq_point_hist)
-# summary(saaq_point_hist_2)
+# summary(saaq_point_hist_exp)
 
 
 

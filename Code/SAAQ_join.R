@@ -220,6 +220,7 @@ lapply(saaq_past_counts, class)
 # Add variables to match other datasets.
 saaq_past_counts[, points := 0]
 saaq_past_counts[, num := N]
+saaq_past_counts[, N := NULL]
 saaq_past_counts[, seq := 0]
 
 
@@ -228,6 +229,9 @@ saaq_past_counts[, sex := factor(sex, levels = c('M', 'F'))]
 saaq_past_counts[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
 saaq_past_counts[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 saaq_past_counts[, age_grp := factor(age_grp, levels = age_group_list)]
+saaq_past_counts <- unique(saaq_past_counts[, num := sum(num), 
+                                            by = c('date', 'age_grp', 'sex', 
+                                                   'past_active', 'curr_pts_grp')])
 saaq_past_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 
@@ -236,7 +240,7 @@ summary(saaq_past_counts[, c(join_var_list), with = FALSE])
 # Recall that negative values are drivers swapping in from 
 # the zero-point category. 
 # These will be canceled out later, when driver counts are added in. 
-# These are already canceled out by initializing the balances. 
+# Update: These are already canceled out by initializing the balances. 
 # They are removed from the counts of inactive drivers below.
 
 
@@ -298,8 +302,9 @@ summary(saaq_tickets[, c(join_var_list), with = FALSE])
 
 # Obtain counts of drivers who left the curr_pts_grp == 0 category.
 # That is, all drivers who got a ticket at some point.
-# These are already contained in saaq_past_counts and should be removed from
-# driver_counts to avoid double-counting these drivers.
+# These are already contained in saaq_past_counts
+# (even if they are sometime in curr_pts_grp == 0)
+# and should be removed from driver_counts to avoid double-counting these drivers.
 non_zero_counts <- unique(saaq_tickets[, c('seq', 'sex', 'age_grp')])
 non_zero_counts <- unique(non_zero_counts[, .N, by = c('sex', 'age_grp')])
 # non_zero_counts[, curr_pts_grp := 0]
@@ -342,7 +347,7 @@ summary(driver_counts)
 summary(saaq_past_counts[, c(join_var_list), with = FALSE])
 # In earlier versions, there were negative counts for the zero categories.
 # These were accumulated as drivers swapped from zero to positive balances. 
-summary(saaq_past_counts[N < 0, N, by = curr_pts_grp])
+summary(saaq_past_counts[num < 0, num, by = curr_pts_grp])
 # No more negative counts remain in the zero categories.
 summary(saaq_past_counts[curr_pts_grp != 0, min(num), by = curr_pts_grp])
 # Confirmed. 
