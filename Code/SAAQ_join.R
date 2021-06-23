@@ -159,7 +159,8 @@ driver_counts[, curr_pts_grp := 0]
 driver_counts[, past_active := FALSE]
 
 # Standardize date variable.
-driver_counts[, date := dinf]
+# driver_counts[, date := dinf]
+# Changed name in source file.
 
 
 # Define categorical variables as factors.

@@ -75,6 +75,90 @@ colnames(annual)
 sapply(annual, class)
 
 
+#--------------------------------------------------------------------------------
+# Make some adjustments to make the data more realistic. 
+#--------------------------------------------------------------------------------
+
+# Add an allowance for unlicensed drivers. 
+
+# Unlicensed drivers represent about 5% of drivers who get tickets.
+unl_pct <- 0.05
+
+# The majority are males (about 90%).
+unl_pct_M <- 0.90
+
+# About one third are aged 20 or under.
+unl_pct_teen <- 0.333
+
+# The majority (50%) are aged 21-34.
+unl_pct_adult <- 0.50
+
+# The remaining 16.6% are aged 35 and above.
+unl_pct_mid_sr <- 0.167
+
+# Allocate these across the population accordingly. 
+
+
+# Gross up population by 5% to account for entering and leaving the province. 
+# It's not the same set of drivers each year. 
+turnover_multiplier <- 0.05
+
+
+# year <- 2000
+for (year in seq(2000, 2018)) {
+  col_name <- sprintf('yr_%d', year)
+  
+  # Gross up the population for turnover. 
+  annual[, col_name] <- as.integer(round(annual[, col_name]*(1 + turnover_multiplier)))
+  
+  # Increase counts for predicted number of unlicensed drivers.
+  unl_num <- round(unl_pct*annual[nrow(annual), col_name])
+  
+  # Allocate these across different age groups. 
+  
+  # Young males.
+  row_sel <- annual[, 'age_group'] %in% c("0-15", "16-19") & annual[, 'sex'] == 'M'
+  unl_wt <- annual[row_sel, col_name]/sum(annual[row_sel, col_name])
+  annual[row_sel, col_name] <- annual[row_sel, col_name] + 
+    round(unl_wt*unl_pct_M*unl_pct_teen*unl_num)
+  
+  # Young females.
+  row_sel <- annual[, 'age_group'] %in% c("0-15", "16-19") & annual[, 'sex'] == 'F'
+  unl_wt <- annual[row_sel, col_name]/sum(annual[row_sel, col_name])
+  annual[row_sel, col_name] <- annual[row_sel, col_name] + 
+    round(unl_wt*(1 - unl_pct_M)*unl_pct_teen*unl_num)
+  
+  # Adult males.
+  row_sel <- annual[, 'age_group'] %in% c("20-24", "25-34") & annual[, 'sex'] == 'M'
+  unl_wt <- annual[row_sel, col_name]/sum(annual[row_sel, col_name])
+  annual[row_sel, col_name] <- annual[row_sel, col_name] + 
+    round(unl_wt*unl_pct_M*unl_pct_adult*unl_num)
+  
+  # Adult females.
+  row_sel <- annual[, 'age_group'] %in% c("20-24", "25-34") & annual[, 'sex'] == 'F'
+  unl_wt <- annual[row_sel, col_name]/sum(annual[row_sel, col_name])
+  annual[row_sel, col_name] <- annual[row_sel, col_name] + 
+    round(unl_wt*(1 - unl_pct_M)*unl_pct_adult*unl_num)
+  
+  # Middle aged or senior males.
+  row_sel <- annual[, 'age_group'] %in% c("20-24", "25-34") & annual[, 'sex'] == 'M'
+  unl_wt <- annual[row_sel, col_name]/sum(annual[row_sel, col_name])
+  annual[row_sel, col_name] <- annual[row_sel, col_name] + 
+    round(unl_wt*unl_pct_M*unl_pct_mid_sr*unl_num)
+  
+  # Middle aged or senior females.
+  row_sel <- annual[, 'age_group'] %in% c("20-24", "25-34") & annual[, 'sex'] == 'F'
+  unl_wt <- annual[row_sel, col_name]/sum(annual[row_sel, col_name])
+  annual[row_sel, col_name] <- annual[row_sel, col_name] + 
+    round(unl_wt*(1 - unl_pct_M)*unl_pct_mid_sr*unl_num)
+  
+  
+  
+}
+
+
+
+
 ################################################################################
 # Construct Daily Driver Counts
 ################################################################################
@@ -82,9 +166,9 @@ sapply(annual, class)
 # Construct a date series from dates in main dataset. 
 
 # Data limits from dataset with tickets (events).
-# > min(saaq[, 'dinf'])
+# > min(saaq[, 'date'])
 # [1] "1998-01-01"
-# > max(saaq[, 'dinf'])
+# > max(saaq[, 'date'])
 # [1] "2010-12-31"
 # > 
 
@@ -108,12 +192,12 @@ num_rows <- length(date_list)*length(age_group_list)*2
 
 # Define columns as in main saaq dataset of tickets: 
 # > colnames(saaq)
-# [1] "seq"     "sex"     "dob_yr"  "dob_mo"  "dob_day" "dinf"    "points" 
+# [1] "seq"     "sex"     "dob_yr"  "dob_mo"  "dob_day" "date"    "points" 
 # [8] "dcon"    "age"     "age_grp"
 # > 
 
 # Initialize a data frame for all the drivers without tickets each day. 
-no_tickets_df <- data.frame(dinf = rep(date_list, 
+driver_counts <- data.frame(date = rep(date_list, 
                                        each = length(age_group_list)*2),
                             seq = rep(0, num_rows),
                             age_grp = rep(age_group_list, 
@@ -124,15 +208,17 @@ no_tickets_df <- data.frame(dinf = rep(date_list,
                             points = rep(0, num_rows),
                             num = rep(NA, num_rows))
 
-summary(no_tickets_df)
-head(no_tickets_df, 25)
-tail(no_tickets_df, 25)
+summary(driver_counts)
+head(driver_counts, 25)
+tail(driver_counts, 25)
 
 
 # Populate the number of licensed drivers by category. 
 
 
 # Initialize counts with year 2000 totals for previous years. 
+# Data are only available for the years 2000 and beyond.
+# This doesn't matter for the two-year window around 2008.
 this_year <- 2000
 next_june_counts <- annual[annual[, 'age_group'] != 'Total' & 
                               annual[, 'sex'] != 'T', 
@@ -165,7 +251,7 @@ for (date_num in 1:length(date_list)) {
                              month(date_list) == 6 &
                              mday(date_list) == 1]) { # Before "2000-06-01"
 
-    no_tickets_df[row_nums, 'num'] <- next_june_counts
+    driver_counts[row_nums, 'num'] <- next_june_counts
 
   } else {
     
@@ -177,12 +263,12 @@ for (date_num in 1:length(date_list)) {
     this_date_counts <- next_june_wt*next_june_counts + 
       (1 - next_june_wt)*last_june_counts
     
-    no_tickets_df[row_nums, 'num'] <- round(this_date_counts)
+    driver_counts[row_nums, 'num'] <- round(this_date_counts)
     
   }
   
   
-  # Evey June 1, refresh the totals. 
+  # Every June 1, refresh the totals. 
   if (this_month == 6 & this_day == 1 & this_year >= 2000) {
     
     last_june_counts <- next_june_counts
@@ -219,42 +305,42 @@ for (date_num in 1:length(date_list)) {
 # # Now do some tests to verify accuracy. 
 # 
 # # Check at some June 1 dates.
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2000-06-01', ]
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2000-06-30', ]
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2002-06-01', ]
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2002-06-30', ]
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2010-06-01', ]
+# driver_counts[driver_counts[, 'date'] == '2000-06-01', ]
+# driver_counts[driver_counts[, 'date'] == '2000-06-30', ]
+# driver_counts[driver_counts[, 'date'] == '2002-06-01', ]
+# driver_counts[driver_counts[, 'date'] == '2002-06-30', ]
+# driver_counts[driver_counts[, 'date'] == '2010-06-01', ]
 # 
 # # Check two consecutive days. 
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2010-05-31', ]
+# driver_counts[driver_counts[, 'date'] == '2010-05-31', ]
 # 
-# no_tickets_df[no_tickets_df[, 'dinf'] == '2010-06-30', ]
+# driver_counts[driver_counts[, 'date'] == '2010-06-30', ]
 # 
 # 
 # 
 # 
 # # Plot the age group counts over time. 
-# # sel_obsn <- no_tickets_df[, 'age_grp'] == '0-15' & 
-# #   no_tickets_df[, 'sex'] == 'F'
-# # sel_obsn <- no_tickets_df[, 'age_grp'] == '0-15' & 
-# #   no_tickets_df[, 'sex'] == 'M'
-# # sel_obsn <- no_tickets_df[, 'age_grp'] == '20-24' &
-# #   no_tickets_df[, 'sex'] == 'F'
-# sel_obsn <- no_tickets_df[, 'age_grp'] == '20-24' &
-#   no_tickets_df[, 'sex'] == 'M'
-# # sel_obsn <- no_tickets_df[, 'age_grp'] == '90-199' & 
-# #   no_tickets_df[, 'sex'] == 'M'
-# # sel_obsn <- no_tickets_df[, 'age_grp'] == '90-199' &
-# #   no_tickets_df[, 'sex'] == 'F'
+# # sel_obsn <- driver_counts[, 'age_grp'] == '0-15' & 
+# #   driver_counts[, 'sex'] == 'F'
+# # sel_obsn <- driver_counts[, 'age_grp'] == '0-15' & 
+# #   driver_counts[, 'sex'] == 'M'
+# # sel_obsn <- driver_counts[, 'age_grp'] == '20-24' &
+# #   driver_counts[, 'sex'] == 'F'
+# sel_obsn <- driver_counts[, 'age_grp'] == '20-24' &
+#   driver_counts[, 'sex'] == 'M'
+# # sel_obsn <- driver_counts[, 'age_grp'] == '90-199' & 
+# #   driver_counts[, 'sex'] == 'M'
+# # sel_obsn <- driver_counts[, 'age_grp'] == '90-199' &
+# #   driver_counts[, 'sex'] == 'F'
 # 
 # # Plot a time series for this selection. 
-# new_year_dates <- seq(sum(sel_obsn))[month(no_tickets_df[sel_obsn, 'dinf']) == 1 & 
-#   mday(no_tickets_df[sel_obsn, 'dinf']) == 1]
-# new_year_labels <- year(no_tickets_df[sel_obsn, 'dinf'][new_year_dates])
+# new_year_dates <- seq(sum(sel_obsn))[month(driver_counts[sel_obsn, 'date']) == 1 & 
+#   mday(driver_counts[sel_obsn, 'date']) == 1]
+# new_year_labels <- year(driver_counts[sel_obsn, 'date'][new_year_dates])
 # 
 # 
 # # Plot for the selected age group.
-# plot(no_tickets_df[sel_obsn, 'num'],
+# plot(driver_counts[sel_obsn, 'num'],
 #      xaxt = 'n')
 # 
 # axis(1, at = new_year_dates, 
@@ -269,7 +355,7 @@ for (date_num in 1:length(date_list)) {
 ################################################################################
 
 out_path_file_name <- sprintf('%s/%s', data_out_path, out_file_name)
-write.csv(x = no_tickets_df, file = out_path_file_name, row.names = FALSE)
+write.csv(x = driver_counts, file = out_path_file_name, row.names = FALSE)
 
 
 

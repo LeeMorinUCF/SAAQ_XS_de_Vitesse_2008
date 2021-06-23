@@ -625,7 +625,7 @@ driver_counts[, curr_pts_grp := 0]
 driver_counts[, past_active := FALSE]
 
 # Standardize date variable.
-driver_counts[, date := dinf]
+# driver_counts[, date := dinf]
 
 
 # Define categorical variables as factors.
@@ -680,6 +680,13 @@ count_comp[, diff_max := max - num]
 # This amounts to 3-5% above the number of licensed drivers. 
 # These are teenagers who are stealing mom's car when the parents are out of town. 
 # Many teenage boys drive a car and get a ticket without a license. 
+
+# After adjustments, only a few minor excesses exist for seniors.
+# These are canceled out by the "younger" groups of seniors. 
+# In light of the low infraction rates in this group, 
+# it is not worth adjusting further. 
+# Some people get a ticket for a seat belt and, even if their license 
+# is no longer valid, the ticket get recorded under their expired license number. 
 
 count_comp[, sum(num)]
 count_comp[, sum(num), by = c('sex')]
