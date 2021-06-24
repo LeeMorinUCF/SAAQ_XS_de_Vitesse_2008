@@ -271,6 +271,7 @@ saaq_data[, events := points > 0]
 
 colnames(saaq_data)
 
+
 full_var_list = c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
 num_vars <- length(full_var_list)
 model_list <- data.frame()
@@ -315,7 +316,7 @@ auc_mat <- data.frame(model_name = rep(NA, ncol(model_list)),
                       full_sample = rep(NA, ncol(model_list)))
 
 
-# model_num <- 1
+model_num <- 1
 for (model_num in 1:ncol(model_list)) {
   
   auc_mat[model_num, 'model_name'] <- sprintf('m_%d', model_num)
@@ -334,49 +335,114 @@ for (model_num in 1:ncol(model_list)) {
   
   print(sprintf('Estimating model: %s', fmla_str))
   
-  # Fit regression model on training sample. 
-  lm_spec <- lm(formula = fmla, 
-                data = saaq_data[sample == 'train', ],
-                # data = saaq_data, # Full sample.
-                # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-                # data = saaq_data[sex == 'F'], # Full sample of male drivers.
-                weights = num)
+  # # Fit regression model on training sample. 
+  # lm_spec <- lm(formula = fmla, 
+  #               data = saaq_data[sample == 'train', ],
+  #               # data = saaq_data, # Full sample.
+  #               # data = saaq_data[sex == 'M'], # Full sample of male drivers.
+  #               # data = saaq_data[sex == 'F'], # Full sample of male drivers.
+  #               weights = num, 
+  #               model = FALSE, x = FALSE, y = FALSE, qr = FALSE)
   
-  summary(lm_spec)
+  # summary(lm_spec)
   # print(summary(lm_spec))
   
+  result <- tryCatch({
+    
+    # Fit regression model on training sample. 
+    lm_spec <- lm(formula = fmla, 
+                  data = saaq_data[sample == 'train', ],
+                  # data = saaq_data, # Full sample.
+                  # data = saaq_data[sex == 'M'], # Full sample of male drivers.
+                  # data = saaq_data[sex == 'F'], # Full sample of male drivers.
+                  weights = num) # , 
+                  # model = FALSE, x = FALSE, y = FALSE, qr = FALSE)
+    
+    # If it reaches this message, there was no error.
+    print("No error or warning from lm().")
+    
+  }, warning = function(w) {
+    
+    print(paste("WARNING from lm(): ", w))
+    
+  }, error = function(e) {
+    
+    print(paste("ERROR from lm(): ", e))
+    
+  }, finally = {
+    # 
+    # # Calculate predicted values to evaluate models.
+    # saaq_data[, fit := predict(lm_spec, newdata = saaq_data)]
+    # 
+    # 
+    # # Calculate AUROC on full sample.
+    # roc <- roc.curve(scores.class0 = saaq_data[events == 0, -fit], 
+    #                  scores.class1 = saaq_data[events == 1, -fit], 
+    #                  weights.class0 = saaq_data[events == 0, num], 
+    #                  weights.class1 = saaq_data[events == 1, num], 
+    #                  curve = FALSE )
+    # # print(roc)
+    # # plot(roc)
+    # auc_mat[model_num, 'full_sample'] <- roc$auc
+    # 
+    # # Calculate AUROC on training sample.
+    # roc <- roc.curve(scores.class0 = saaq_data[sample == 'train' & events == 0, -fit], 
+    #                  scores.class1 = saaq_data[sample == 'train' & events == 1, -fit], 
+    #                  weights.class0 = saaq_data[sample == 'train' & events == 0, num], 
+    #                  weights.class1 = saaq_data[sample == 'train' & events == 1, num], 
+    #                  curve = FALSE )
+    # 
+    # auc_mat[model_num, 'in_sample'] <- roc$auc
+    # 
+    # # Calculate AUROC on testing sample.
+    # roc <- roc.curve(scores.class0 = saaq_data[sample == 'test' & events == 0, -fit], 
+    #                  scores.class1 = saaq_data[sample == 'test' & events == 1, -fit], 
+    #                  weights.class0 = saaq_data[sample == 'test' & events == 0, num], 
+    #                  weights.class1 = saaq_data[sample == 'test' & events == 1, num], 
+    #                  curve = FALSE )
+    # 
+    # auc_mat[model_num, 'out_sample'] <- roc$auc
+    
+    # print("No error or warning from lm().")
+  })
   
-  # Calculate residuals to predict with regression trees.
-  saaq_data[, fit := predict(lm_spec, newdata = saaq_data)]
   
-  
-  # Calculate AUROC on full sample.
-  roc <- roc.curve(scores.class0 = saaq_data[events == 0, -fit], 
-                   scores.class1 = saaq_data[events == 1, -fit], 
-                   weights.class0 = saaq_data[events == 0, num], 
-                   weights.class1 = saaq_data[events == 1, num], 
-                   curve = FALSE )
-  # print(roc)
-  # plot(roc)
-  auc_mat[model_num, 'full_sample'] <- roc$auc
-  
-  # Calculate AUROC on training sample.
-  roc <- roc.curve(scores.class0 = saaq_data[sample == 'train' & events == 0, -fit], 
-                   scores.class1 = saaq_data[sample == 'train' & events == 1, -fit], 
-                   weights.class0 = saaq_data[sample == 'train' & events == 0, num], 
-                   weights.class1 = saaq_data[sample == 'train' & events == 1, num], 
-                   curve = FALSE )
-  
-  auc_mat[model_num, 'in_sample'] <- roc$auc
-  
-  # Calculate AUROC on testing sample.
-  roc <- roc.curve(scores.class0 = saaq_data[sample == 'test' & events == 0, -fit], 
-                   scores.class1 = saaq_data[sample == 'test' & events == 1, -fit], 
-                   weights.class0 = saaq_data[sample == 'test' & events == 0, num], 
-                   weights.class1 = saaq_data[sample == 'test' & events == 1, num], 
-                   curve = FALSE )
-  
-  auc_mat[model_num, 'out_sample'] <- roc$auc
+  # Calculate AUROC only if model fit was successful. 
+  if (result == "No error or warning from lm().") {
+    
+    # Calculate predicted values to evaluate models.
+    saaq_data[, fit := predict(lm_spec, newdata = saaq_data)]
+    
+    
+    # Calculate AUROC on full sample.
+    roc <- roc.curve(scores.class0 = saaq_data[events == 0, -fit],
+                     scores.class1 = saaq_data[events == 1, -fit],
+                     weights.class0 = saaq_data[events == 0, num],
+                     weights.class1 = saaq_data[events == 1, num],
+                     curve = FALSE )
+    # print(roc)
+    # plot(roc)
+    auc_mat[model_num, 'full_sample'] <- roc$auc
+    
+    # Calculate AUROC on training sample.
+    roc <- roc.curve(scores.class0 = saaq_data[sample == 'train' & events == 0, -fit],
+                     scores.class1 = saaq_data[sample == 'train' & events == 1, -fit],
+                     weights.class0 = saaq_data[sample == 'train' & events == 0, num],
+                     weights.class1 = saaq_data[sample == 'train' & events == 1, num],
+                     curve = FALSE )
+    
+    auc_mat[model_num, 'in_sample'] <- roc$auc
+    
+    # Calculate AUROC on testing sample.
+    roc <- roc.curve(scores.class0 = saaq_data[sample == 'test' & events == 0, -fit],
+                     scores.class1 = saaq_data[sample == 'test' & events == 1, -fit],
+                     weights.class0 = saaq_data[sample == 'test' & events == 0, num],
+                     weights.class1 = saaq_data[sample == 'test' & events == 1, num],
+                     curve = FALSE )
+    
+    auc_mat[model_num, 'out_sample'] <- roc$auc
+    
+  }
   
   print(auc_mat)
 }
