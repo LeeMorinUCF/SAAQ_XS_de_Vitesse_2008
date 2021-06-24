@@ -1,6 +1,7 @@
 
 # Tests with calculations of the AUROC.
 
+library(data.table)
 
 # Calculations using rank.
 
@@ -31,20 +32,83 @@ plot(roc)
 # Weighted example with repeated observations.
 
 
+test_auroc <- data.table(x1 = c(10,10,9,9,9,
+                               8,7,7,7,7,
+                               6,5,5,5,4,
+                               3,2,2,1,1), 
+                         x2 = c(1,1,2,2,2,
+                               3,4,4,4,4,
+                               5,6,6,6,7,
+                               8,9,9,10,10),
+                         y = c(1,1,0,1,1,
+                               0,1,0,1,1,
+                               1,0,1,1,0,
+                               1,0,0,1,0), 
+                         num = rep(1,20))
+
+test_auroc_agg_1 <- test_auroc[, .N, by = c('x1', 'y')]
+test_auroc_agg_2 <- test_auroc[, .N, by = c('x2', 'y')]
+
+x <- test_auroc[, x1]
+y <- test_auroc[, y]
+
+roc <- roc.curve(scores.class0 = x, weights.class0 = y, curve = TRUE )
+roc
+plot(roc)
+# In reverse order:
+# Area under curve:
+#   0.6770833 
+# In the correct order:
+x <- test_auroc[, x2]
+roc <- roc.curve(scores.class0 = x, weights.class0 = y, curve = TRUE )
+roc
+# Area under curve:
+#   0.3229167 
+
+
+# Now calculate with separate scores for class zero and one.
+# Scores in order increasing with class 1.
+x_0 <- test_auroc[y == 0, x1]
+x_1 <- test_auroc[y == 1, x1]
+roc <- roc.curve(scores.class0 = x_0, scores.class1 = x_1, curve = TRUE )
+roc
+plot(roc)
+
+# Scores in order decreasing with class 1.
+x_0 <- test_auroc[y == 0, x2]
+x_1 <- test_auroc[y == 1, x2]
+roc <- roc.curve(scores.class0 = x_0, scores.class1 = x_1, curve = TRUE )
+roc
+plot(roc)
+# It seems to work but the order is reversed. 
 
 
 
-# create artificial weights
-x.weights <- runif( 1000 );
-y.weights <- runif( 1000 );
-# compute PR curve and area under curve
-pr <- pr.curve( x, y, x.weights, y.weights, curve = TRUE );
-# plot curve
-plot(pr)
-# compute ROC curve and area under curve
-roc <- roc.curve( x, y, x.weights, y.weights, curve = TRUE );
-# plot curve
+
+
+
+# Now test with aggregated data. 
+# Scores in order increasing with class 1.
+x_0 <- test_auroc_agg_1[y == 0, x1]
+x_1 <- test_auroc_agg_1[y == 1, x1]
+w_0 <- test_auroc_agg_1[y == 0, N]
+w_1 <- test_auroc_agg_1[y == 1, N]
+roc <- roc.curve(scores.class0 = x_0, scores.class1 = x_1, 
+                 weights.class0 = w_0, weights.class1 = w_1, curve = TRUE )
+roc
+plot(roc)
+
+# Scores in order decreasing with class 1.
+x_0 <- test_auroc_agg_2[y == 0, x2]
+x_1 <- test_auroc_agg_2[y == 1, x2]
+w_0 <- test_auroc_agg_2[y == 0, N]
+w_1 <- test_auroc_agg_2[y == 1, N]
+roc <- roc.curve(scores.class0 = x_0, scores.class1 = x_1, 
+                 weights.class0 = w_0, weights.class1 = w_1, curve = TRUE )
+roc
 plot(roc)
 
 
+# Tests pass:
+# ROC matches for aggregated and original data
 
