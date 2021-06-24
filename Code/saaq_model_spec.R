@@ -36,6 +36,9 @@ library(data.table)
 # Load rpart package for partitioning with regression trees.
 library(rpart)
 
+# Load PRROC package for calculating area under the ROC curve.
+library(PRROC)
+
 
 ################################################################################
 # Set parameters for file IO
@@ -237,8 +240,22 @@ summary(saaq_data[policy == FALSE, date])
 
 
 ################################################################################
-# Fit a series of decision trees with increasing depth
+# Fit a series of models
 ################################################################################
+
+#-------------------------------------------------------------------------------
+# Define list of models
+#-------------------------------------------------------------------------------
+
+
+# Predict for any ticket value.
+pts_target <- 'all'
+# All violations combined.
+saaq_data[, events := points > 0]
+
+
+
+
 
 #-------------------------------------------------------------------------------
 # First version with all variables
@@ -247,112 +264,138 @@ summary(saaq_data[policy == FALSE, date])
 # Fit a series of models.
 
 # Predict for any ticket value.
-pts_target <- 'all'
+# pts_target <- 'all'
 # All violations combined.
 saaq_data[, events := points > 0]
 
+
 colnames(saaq_data)
-var_list <- c('policy', 'month', 'weekday', 
-              'sex', 'age_grp', 
-              # 'past_active', 
-              'curr_pts_grp')
 
-# Summarize data before estimation.
-summary(saaq_data[sample == 'train', c('events', var_list), with = FALSE])
+full_var_list = c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
+num_vars <- length(full_var_list)
+model_list <- data.frame()
+model_list[1, 'm_1'] <- c('curr_pts_grp')
+model_list[1:2, 'm_2'] <- c('curr_pts_grp', 'age_grp')
+model_list[1:3, 'm_3'] <- c('curr_pts_grp', 'age_grp', 'sex')
+model_list[1:4, 'm_4'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday')
+model_list[1:5, 'm_5'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month')
+model_list[1:6, 'm_6'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
 
-# Define candidate variables.
-fmla <- as.formula(sprintf('events ~ %s',
-                           paste(var_list, collapse = " + ")))
+# Now add interactions.
+num_models <- ncol(model_list)
+for (i in 1:num_vars) {
+  for (j in 1:(num_vars-1)) {
+    
+    var_name_i <- full_var_list[i]
+    var_name_j <- full_var_list[j]
+    int_var_name <- sprintf('%s*%s', var_name_i, var_name_j)
+    
+    num_models <- num_models + 1
+    model_name <- sprintf('m_%d', num_models)
+    
+    model_list[1:(num_vars+1), model_name] <- c(full_var_list, int_var_name)
+    
+  }
+}
 
-# Set controls for regression tree. 
-rpart_ctrl <- rpart.control(minsplit = 20, 
-                            # minbucket = round(minsplit/3), 
-                            # cp = 0.01, 
-                            # cp = 10^(-200), 
-                            cp = 10^(-6), 
-                            # maxcompete = 4, 
-                            maxcompete = 0, 
-                            # maxsurrogate = 5, 
-                            maxsurrogate = 0, 
-                            usesurrogate = 2, 
-                            xval = 10,
-                            surrogatestyle = 0, 
-                            maxdepth = 30)
 
-# Fit a regression tree.
-rpart_tree <- rpart(formula = fmla, 
-                    data = saaq_data[sample == 'train', ], weights = num, 
-                    method = 'anova', 
-                    control = rpart_ctrl)
+# model_list[1:6, 'm7'] <- c('month', 'weekday', 'age_grp', 'curr_pts_grp',
+#                            'policy', 'policy*age_grp')
+# model_list[1:8, 'm8'] <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp',
+#                            'policy', 'policy*sex', 'policy*age_grp')
 
-summary(rpart_tree)
 
+
+
+
+# Initialize matrix for AUC statistics. 
+auc_mat <- data.frame(model_name = rep(NA, ncol(model_list)),
+                      in_sample = rep(NA, ncol(model_list)), 
+                      out_sample = rep(NA, ncol(model_list)), 
+                      full_sample = rep(NA, ncol(model_list)))
+
+
+# model_num <- 1
+for (model_num in 1:ncol(model_list)) {
+  
+  auc_mat[model_num, 'model_name'] <- sprintf('m_%d', model_num)
+  
+  
+  var_list <- model_list[!is.na(model_list[, model_num]), model_num]
+  
+  # Summarize data before estimation.
+  # summary(saaq_data[sample == 'train', c('events', var_list), with = FALSE])
+  
+  # Define candidate variables.
+  fmla_str <- sprintf('events ~ %s',
+                      paste(var_list, collapse = " + "))
+  fmla <- as.formula(fmla_str)
+  
+  
+  print(sprintf('Estimating model: %s', fmla_str))
+  
+  # Fit regression model on training sample. 
+  lm_spec <- lm(formula = fmla, 
+                data = saaq_data[sample == 'train', ],
+                # data = saaq_data, # Full sample.
+                # data = saaq_data[sex == 'M'], # Full sample of male drivers.
+                # data = saaq_data[sex == 'F'], # Full sample of male drivers.
+                weights = num)
+  
+  summary(lm_spec)
+  # print(summary(lm_spec))
+  
+  
+  # Calculate residuals to predict with regression trees.
+  saaq_data[, fit := predict(lm_spec, newdata = saaq_data)]
+  
+  
+  # Calculate AUROC on full sample.
+  roc <- roc.curve(scores.class0 = saaq_data[events == 0, -fit], 
+                   scores.class1 = saaq_data[events == 1, -fit], 
+                   weights.class0 = saaq_data[events == 0, num], 
+                   weights.class1 = saaq_data[events == 1, num], 
+                   curve = FALSE )
+  # print(roc)
+  # plot(roc)
+  auc_mat[model_num, 'full_sample'] <- roc$auc
+  
+  # Calculate AUROC on training sample.
+  roc <- roc.curve(scores.class0 = saaq_data[sample == 'train' & events == 0, -fit], 
+                   scores.class1 = saaq_data[sample == 'train' & events == 1, -fit], 
+                   weights.class0 = saaq_data[sample == 'train' & events == 0, num], 
+                   weights.class1 = saaq_data[sample == 'train' & events == 1, num], 
+                   curve = FALSE )
+  
+  auc_mat[model_num, 'in_sample'] <- roc$auc
+  
+  # Calculate AUROC on testing sample.
+  roc <- roc.curve(scores.class0 = saaq_data[sample == 'test' & events == 0, -fit], 
+                   scores.class1 = saaq_data[sample == 'test' & events == 1, -fit], 
+                   weights.class0 = saaq_data[sample == 'test' & events == 0, num], 
+                   weights.class1 = saaq_data[sample == 'test' & events == 1, num], 
+                   curve = FALSE )
+  
+  auc_mat[model_num, 'out_sample'] <- roc$auc
+  
+  print(auc_mat)
+}
+
+print(auc_mat)
 
 
 # Calculate AUROC in-sample and out-of-sample.
 
+
+
+
+
 # Output table of results.
 
 
-#-------------------------------------------------------------------------------
-# Second version after projection off key variables
-#-------------------------------------------------------------------------------
-
-# Regression on seasonal indicators.
-# and categorical variables without interactions. 
-first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp')
-# first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp', 
-#                     'policy', 'policy*sex', 'policy*age_grp')
-# first_var_list <- c('month', 'weekday', 'age_grp', 'curr_pts_grp', 
-#                     'policy', 'policy*age_grp')
-# Define candidate variables.
-fmla <- as.formula(sprintf('events ~ %s',
-                           paste(first_var_list, collapse = " + ")))
-
-first_lm <- lm(formula = fmla, 
-               # data = saaq_data[sample == 'train', ], 
-               data = saaq_data, # Full sample.
-               # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-               # data = saaq_data[sex == 'F'], # Full sample of male drivers.
-               weights = num)
-
-summary(first_lm)
-
-
-# Calculate residuals to predict with regression trees.
-saaq_data[, fit := predict(first_lm, newdata = saaq_data)]
 
 # summary(saaq_data)
 
-
-saaq_data[, resid := events - fit]
-
-
-# Define candidate variables.
-fmla <- as.formula(sprintf('resid ~ %s',
-                           paste(var_list, collapse = " + ")))
-
-# Set controls for regression tree. 
-rpart_ctrl <- rpart.control(minsplit = 20, 
-                            # minbucket = round(minsplit/3), 
-                            # cp = 0.01, 
-                            cp = 10^(-6), 
-                            # maxcompete = 4, 
-                            maxcompete = 0, 
-                            # maxsurrogate = 5, 
-                            maxsurrogate = 0, 
-                            usesurrogate = 2, 
-                            xval = 10,
-                            surrogatestyle = 0, 
-                            maxdepth = 30)
-
-# Fit a regression tree.
-rpart_tree <- rpart(formula = fmla, 
-                    data = saaq_data[sample == 'train', ], weights = num, 
-                    method = 'anova', 
-                    control = rpart_ctrl)
-
-summary(rpart_tree)
 
 
 
@@ -362,19 +405,42 @@ summary(rpart_tree)
 #-------------------------------------------------------------------------------
 
 
-auroc_dt <- saaq_data[, c('events', 'fit', 'num')]
 
-summary(auroc_dt)
+#--------------------------------------------------------------------------------
+# Fit regression tree on residuals
+#--------------------------------------------------------------------------------
 
-# Take the cumulative sum of ranked predictions, weighted by events.
-# n1 =  sum(lr$y) 
-# auroc = data.table(y=lr$y , p=lr$fitted.values)[, rp := frank(p)][y==1, (sum(rp)-.5*n1*(n1+1))/(n1*(n-n1))]  ## area under ROC curve = Mann-Whitney-Wilcoxon statistic
+saaq_data[, resid := events - fit]
 
-num_sum <- auroc_dt[, sum(num)]
-num_1 <- auroc_dt[events == 1, sum(num)]
-auroc_dt[, rank := frank(fit)]
-auroc_dt[events == 1, (sum(rank*num) - num_1*(num_1+1)/2)/(num_1*(num_sum - num_1))]
-
+# 
+# 
+# 
+# # Define candidate variables.
+# fmla <- as.formula(sprintf('resid ~ %s',
+#                            paste(var_list, collapse = " + ")))
+# 
+# # Set controls for regression tree. 
+# rpart_ctrl <- rpart.control(minsplit = 20, 
+#                             # minbucket = round(minsplit/3), 
+#                             # cp = 0.01, 
+#                             cp = 10^(-6), 
+#                             # maxcompete = 4, 
+#                             maxcompete = 0, 
+#                             # maxsurrogate = 5, 
+#                             maxsurrogate = 0, 
+#                             usesurrogate = 2, 
+#                             xval = 10,
+#                             surrogatestyle = 0, 
+#                             maxdepth = 30)
+# 
+# # Fit a regression tree.
+# rpart_tree <- rpart(formula = fmla, 
+#                     data = saaq_data[sample == 'train', ], weights = num, 
+#                     method = 'anova', 
+#                     control = rpart_ctrl)
+# 
+# summary(rpart_tree)
+# 
 
 
 
