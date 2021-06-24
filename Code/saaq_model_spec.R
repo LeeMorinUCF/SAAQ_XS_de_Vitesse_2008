@@ -300,11 +300,11 @@ summary(rpart_tree)
 
 # Regression on seasonal indicators.
 # and categorical variables without interactions. 
-# first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp')
+first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp')
 # first_var_list <- c('month', 'weekday', 'sex', 'age_grp', 'curr_pts_grp', 
 #                     'policy', 'policy*sex', 'policy*age_grp')
-first_var_list <- c('month', 'weekday', 'age_grp', 'curr_pts_grp', 
-                    'policy', 'policy*age_grp')
+# first_var_list <- c('month', 'weekday', 'age_grp', 'curr_pts_grp', 
+#                     'policy', 'policy*age_grp')
 # Define candidate variables.
 fmla <- as.formula(sprintf('events ~ %s',
                            paste(first_var_list, collapse = " + ")))
@@ -356,9 +356,37 @@ summary(rpart_tree)
 
 
 
+
+#-------------------------------------------------------------------------------
+# Calculate AUROC
+#-------------------------------------------------------------------------------
+
+
+auroc_dt <- saaq_data[, c('events', 'fit', 'num')]
+
+summary(auroc_dt)
+
+# Take the cumulative sum of ranked predictions, weighted by events.
+# n1 =  sum(lr$y) 
+# auroc = data.table(y=lr$y , p=lr$fitted.values)[, rp := frank(p)][y==1, (sum(rp)-.5*n1*(n1+1))/(n1*(n-n1))]  ## area under ROC curve = Mann-Whitney-Wilcoxon statistic
+
+num_sum <- auroc_dt[, sum(num)]
+num_1 <- auroc_dt[events == 1, sum(num)]
+auroc_dt[, rank := frank(fit)]
+auroc_dt[events == 1, (sum(rank*num) - num_1*(num_1+1)/2)/(num_1*(num_sum - num_1))]
+
+
+
+
+
 #-------------------------------------------------------------------------------
 # Separate trees for males and females
 #-------------------------------------------------------------------------------
+
+
+
+
+
 
 
 
