@@ -224,14 +224,37 @@ saaq_data[, weekday := weekdays(date)]
 saaq_data[, weekday := factor(weekday, levels = weekday_list)]
 table(saaq_data[, 'weekday'], useNA = "ifany")
 
-# Last, but not least, define the indicator for the policy change.
+# Define the indicator for the policy change.
 saaq_data[, policy := date >= april_fools_date]
 
 
+# Create some additional indicators for categories.
 
-summary(saaq_data[month == '06', date])
-summary(saaq_data[policy == TRUE, date])
-summary(saaq_data[policy == FALSE, date])
+# There is more traffic on weekdays.
+# People get more sensible, rational tickets on weekdays.
+# People get more crazy, irrational tickets on weekends. 
+saaq_data[, weekend := weekday %in% c('Sunday', 'Saturday')]
+# table(saaq_data[, 'weekday'], saaq_data[, 'weekend'], useNA = "ifany")
+saaq_data[, .N, by = c('weekday', 'weekend')]
+
+# Drivers get fewer tickets in December to January. 
+saaq_data[, winter := month %in% c('01', '12')]
+saaq_data[, .N, by = c('month', 'winter')]
+
+
+# Indicators for drivers with no points and many points.
+saaq_data[, zero_curr_pts := curr_pts_grp %in% c('0')]
+saaq_data[, .N, by = c('curr_pts_grp', 'zero_curr_pts')]
+saaq_data[, high_curr_pts := curr_pts_grp %in% c('11-20', '21-30', '31-150')]
+saaq_data[, .N, by = c('curr_pts_grp', 'high_curr_pts')]
+
+# Indicators for the younger or middle age groups.
+# age_group_list
+saaq_data[, young_age := age_grp %in% c('0-19', '20-24')]
+saaq_data[, .N, by = c('age_grp', 'young_age')]
+saaq_data[, mid_age := age_grp %in% c('25-34', '35-44')]
+saaq_data[, .N, by = c('age_grp', 'mid_age')]
+
 
 
 # saaq_data[date >= sample_beg & date <= sample_end,
@@ -272,29 +295,65 @@ saaq_data[, events := points > 0]
 colnames(saaq_data)
 
 
-full_var_list = c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
-num_vars <- length(full_var_list)
 model_list <- data.frame()
-model_list[1, 'm_1'] <- c('curr_pts_grp')
-model_list[1:2, 'm_2'] <- c('curr_pts_grp', 'age_grp')
-model_list[1:3, 'm_3'] <- c('curr_pts_grp', 'age_grp', 'sex')
-model_list[1:4, 'm_4'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday')
-model_list[1:5, 'm_5'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month')
-model_list[1:6, 'm_6'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
+# model_list[1, 'm_1'] <- c('curr_pts_grp')
+# model_list[1:2, 'm_2'] <- c('curr_pts_grp', 'age_grp')
+# model_list[1:3, 'm_3'] <- c('curr_pts_grp', 'age_grp', 'sex')
+# model_list[1:4, 'm_4'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday')
+# model_list[1:5, 'm_5'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month')
+# model_list[1:6, 'm_6'] <- c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
+
+# Start with original variables with all levels.
+orig_var_list = c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy')
+
+# Larger models use selected indicators for higher-order interactions. 
+sel_var_list <- c('policy', 'sex', # Original variables. 
+                  'weekend', 'winter', # Seasonal indicators. 
+                  'young_age', 'mid_age', # Broad age groups. 
+                  'zero_curr_pts', 'high_curr_pts' # Extreme points groups. 
+                  )
+num_sel_vars <- length(sel_var_list)
+
+# Skip some nonsensical combinations.
+skip_var_list <- c('young_age*mid_age', 'mid_age*young_age', 
+                   'zero_curr_pts*high_curr_pts', 'high_curr_pts*zero_curr_pts')
+
+
+# List of best candidate model so far. 
+model_var_list = c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy', 
+                  'policy*age_grp', 'zero_curr_pts*weekend')
+num_model_vars <- length(model_var_list)
+
+model_list <- data.frame()
+for(i in 1:num_model_vars) {
+  model_list[1:i, sprintf('m_%d', i)] <- model_var_list[1:i]
+}
+
+# model_list[1:7, 'm_7'] <- c(model_var_list)
+# model_list[1:8, 'm_8'] <- c(model_var_list, 'curr_pts_grp*age_grp')
+# model_list[1:8, 'm_9'] <- c(model_var_list, 'curr_pts_grp*weekday')
+# model_list[1:8, 'm_10'] <- c(model_var_list, 'policy*month')
+# model_list[1:8, 'm_11'] <- c(model_var_list, 'age_grp*month')
+# model_list[1:8, 'm_12'] <- c(model_var_list, 'month*weekday')
+
+
 
 # Now add interactions.
 num_models <- ncol(model_list)
-for (i in 1:num_vars) {
-  for (j in 1:(num_vars-1)) {
+for (i in 2:num_sel_vars) {
+  for (j in 1:(i-1)) {
     
-    var_name_i <- full_var_list[i]
-    var_name_j <- full_var_list[j]
+    var_name_i <- sel_var_list[i]
+    var_name_j <- sel_var_list[j]
     int_var_name <- sprintf('%s*%s', var_name_i, var_name_j)
     
-    num_models <- num_models + 1
-    model_name <- sprintf('m_%d', num_models)
-    
-    model_list[1:(num_vars+1), model_name] <- c(full_var_list, int_var_name)
+    if (!(int_var_name %in% model_var_list) & 
+        !(int_var_name %in% skip_var_list)) {
+      num_models <- num_models + 1
+      model_name <- sprintf('m_%d', num_models)
+      
+      model_list[1:(num_model_vars+1), model_name] <- c(model_var_list, int_var_name)
+    }
     
   }
 }
@@ -316,8 +375,8 @@ auc_mat <- data.frame(model_name = rep(NA, ncol(model_list)),
                       full_sample = rep(NA, ncol(model_list)))
 
 
-model_num <- 1
-for (model_num in 1:ncol(model_list)) {
+# model_num <- 11
+for (model_num in 7:ncol(model_list)) {
   
   auc_mat[model_num, 'model_name'] <- sprintf('m_%d', model_num)
   
@@ -334,15 +393,6 @@ for (model_num in 1:ncol(model_list)) {
   
   
   print(sprintf('Estimating model: %s', fmla_str))
-  
-  # # Fit regression model on training sample. 
-  # lm_spec <- lm(formula = fmla, 
-  #               data = saaq_data[sample == 'train', ],
-  #               # data = saaq_data, # Full sample.
-  #               # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-  #               # data = saaq_data[sex == 'F'], # Full sample of male drivers.
-  #               weights = num, 
-  #               model = FALSE, x = FALSE, y = FALSE, qr = FALSE)
   
   # summary(lm_spec)
   # print(summary(lm_spec))
@@ -370,38 +420,6 @@ for (model_num in 1:ncol(model_list)) {
     print(paste("ERROR from lm(): ", e))
     
   }, finally = {
-    # 
-    # # Calculate predicted values to evaluate models.
-    # saaq_data[, fit := predict(lm_spec, newdata = saaq_data)]
-    # 
-    # 
-    # # Calculate AUROC on full sample.
-    # roc <- roc.curve(scores.class0 = saaq_data[events == 0, -fit], 
-    #                  scores.class1 = saaq_data[events == 1, -fit], 
-    #                  weights.class0 = saaq_data[events == 0, num], 
-    #                  weights.class1 = saaq_data[events == 1, num], 
-    #                  curve = FALSE )
-    # # print(roc)
-    # # plot(roc)
-    # auc_mat[model_num, 'full_sample'] <- roc$auc
-    # 
-    # # Calculate AUROC on training sample.
-    # roc <- roc.curve(scores.class0 = saaq_data[sample == 'train' & events == 0, -fit], 
-    #                  scores.class1 = saaq_data[sample == 'train' & events == 1, -fit], 
-    #                  weights.class0 = saaq_data[sample == 'train' & events == 0, num], 
-    #                  weights.class1 = saaq_data[sample == 'train' & events == 1, num], 
-    #                  curve = FALSE )
-    # 
-    # auc_mat[model_num, 'in_sample'] <- roc$auc
-    # 
-    # # Calculate AUROC on testing sample.
-    # roc <- roc.curve(scores.class0 = saaq_data[sample == 'test' & events == 0, -fit], 
-    #                  scores.class1 = saaq_data[sample == 'test' & events == 1, -fit], 
-    #                  weights.class0 = saaq_data[sample == 'test' & events == 0, num], 
-    #                  weights.class1 = saaq_data[sample == 'test' & events == 1, num], 
-    #                  curve = FALSE )
-    # 
-    # auc_mat[model_num, 'out_sample'] <- roc$auc
     
     # print("No error or warning from lm().")
   })
@@ -450,7 +468,19 @@ for (model_num in 1:ncol(model_list)) {
 print(auc_mat)
 
 
-# Calculate AUROC in-sample and out-of-sample.
+
+
+
+# 
+# for (model_num in 1:ncol(model_list)) {
+#   
+#   print(sprintf('m_%d', model_num))
+#   
+#   var_list <- model_list[!is.na(model_list[, model_num]), model_num]
+#   print(var_list)
+#   
+# }
+
 
 
 
