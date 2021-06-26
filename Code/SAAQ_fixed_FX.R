@@ -271,12 +271,10 @@ saaq_data[, policy := date >= april_fools_date]
 
 # Each driver has 1461 days of driving.
 # num_days <- length(unique(saaq_data[, date]))
+# But the number of events differs slightly if they get multiple tickets. 
+# Use individual-level counts of days in the projections of the driver dummies. 
 
-
-# Generate a new dependent variable for fixed-effect regressions. 
-# For Frisch-Waugh-Lovell, this is the deviations from individual means.
-
-# Need denominators by driver. 
+# Calculate denominators by driver for regressions on driver dummies. 
 saaq_data[, num_by_seq := sum(num), by = 'seq']
 saaq_data[, num_policy_by_seq := sum(num*policy), by = 'seq']
 head(saaq_data[, c('seq', 'num_by_seq', 'num_policy_by_seq')])
@@ -286,18 +284,54 @@ summary(saaq_data[seq > 0, c('seq', 'num_by_seq', 'num_policy_by_seq')])
 
 
 
+# Define dependent variable:
+# All violations combined.
+saaq_data[, events := points > 0]
+
+# Notice that dataset of tickets is aggregated. 
+summary(saaq_data[events == 1, num])
+saaq_data[events == 1 & num > 1, .N]
+saaq_data[events == 1 & num > 1, ]
+# Make sure to weight by number of drivers.
+
+# Generate a new dependent variable for fixed-effect regressions. 
+# For Frisch-Waugh-Lovell, this is the deviations from individual means.
+saaq_data[, avg_events := sum(events*num)/sum(num), by = 'seq']
+# summary(saaq_data[, c('events', 'avg_events')])
+# Create an FWL projection of the policy indicator.
+saaq_data[, avg_policy := sum(policy*num)/sum(num), by = 'seq']
+summary(saaq_data[, avg_policy])
+
+
+
 # Generate new variables for current points categories. 
-for (var in curr_pts_grp_list) {
-  # Generate a new column to indicate this point level. 
-  saaq_data[, ]
+for (curr_pts_level in curr_pts_grp_list) {
   
-  # WAIT! Need individual-specific zeros by driver. 
-  # Done.
+  
+  print(sprintf('FWL projections for curr_pts_grp %s', curr_pts_level))
+  
+  # Generate a new column to indicate the average time at this point level. 
+  saaq_data[, avg_FWL_count := 
+              sum((curr_pts_grp == curr_pts_level)*num)/sum(num), by = 'seq']
+
+  # Allocate this variable to a new column.
+  col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
+  saaq_data[, col_var_name] <- saaq_data[, avg_FWL_count]
+  
+  
+  # Now calculate a new column to indicate the average time at this point level, 
+  # during the post-policy period: a policy-points-level interaction. 
+  saaq_data[, avg_FWL_count := 
+              sum((curr_pts_grp == curr_pts_level)*policy*num)/sum(num), by = 'seq']
+  
+  # Allocate this variable to a new column.
+  col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
+  saaq_data[, col_var_name] <- saaq_data[, avg_FWL_count]
   
 }
 
 
-
+summary(saaq_data)
 
 
 ################################################################################
