@@ -653,10 +653,53 @@ saaq_point_hist[, 'curr_pts_grp'] <- cut(saaq_point_hist[, curr_pts],
 
 saaq_point_hist[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
+#--------------------------------------------------------------------------------
+# Create an indicator for highest point category before policy change.
+# Use it to determine if the bad guys change their habits.
+#--------------------------------------------------------------------------------
+
+saaq_point_hist[, pre_policy := date < as.Date(april_fools_2008)]
+table(saaq_point_hist[, pre_policy], useNA = 'ifany')
+# Pre-policy period is longer with an asymmetric window. 
+
+# Create a list of active drivers before the policy change.
+# With separate observations by date, balance category variables 
+# are already defined appropriately for this classification.
+past_active_list <- unique(saaq_point_hist[curr_pts_grp %in% past_active_pts_list &
+                                             pre_policy == TRUE, seq])
+# past_active_list <- unique(saaq_point_hist[prev_pts_grp %in% past_active_pts_list &
+#                                              pre_policy == TRUE, seq])
+# Note that this variable is not used for prediction.
+# It is used for classifying a subsample.
+
+# Allocate drivers to the list of those with an active past. 
+saaq_point_hist[, past_active := seq %in% past_active_list]
+
+
+
+length(unique(saaq_point_hist[, seq]))
+# [1] 3369249 # Full sample.
+# [1] 2421228 # Sample from 2004-2010.
+length(past_active_list)
+# [1] 795169 # Current
+# [1] 723606 # Previous
+# [1] 411228 # With selection by seq on 2004-2010.
+# About a quarter of the sample of drivers.
+# Good: Not too many. Not too few.
+
+table(saaq_point_hist[, past_active], useNA = 'ifany')
+# FALSE     TRUE 
+# 10749201  4772372 
+
+
+#--------------------------------------------------------------------------------
+# Final variables selection
+#--------------------------------------------------------------------------------
+
 
 # Keep selected variables.
 saaq_point_hist <- saaq_point_hist[, c('seq', 'date', 'dinf', 
-                                       'sex', 'age_grp', 
+                                       'sex', 'age_grp', 'past_active', 
                                        'curr_pts', 'curr_pts_grp', 
                                        'points', 'num'), with = FALSE]
 
