@@ -376,6 +376,7 @@ auc_mat <- data.frame(model_name = rep(NA, ncol(model_list)),
 
 
 # model_num <- 11
+# model_num <- 26
 for (model_num in 7:ncol(model_list)) {
   
   auc_mat[model_num, 'model_name'] <- sprintf('m_%d', model_num)
@@ -407,6 +408,9 @@ for (model_num in 7:ncol(model_list)) {
                   # data = saaq_data[sex == 'F'], # Full sample of male drivers.
                   weights = num) # , 
                   # model = FALSE, x = FALSE, y = FALSE, qr = FALSE)
+    
+    # Print a summary to screen.
+    # summary(lm_spec)
     
     # If it reaches this message, there was no error.
     print("No error or warning from lm().")
@@ -468,6 +472,26 @@ for (model_num in 7:ncol(model_list)) {
 print(auc_mat)
 
 
+# Print results for a selected model.
+var_list = c('curr_pts_grp', 'age_grp', 'sex', 'weekday', 'month', 'policy', 
+             'policy*age_grp', 'policy*sex', 'policy*age_grp', 
+             'zero_curr_pts*weekend', 'zero_curr_pts*young_age')
+
+fmla_str <- sprintf('events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample. 
+lm_spec <- lm(formula = fmla, 
+              data = saaq_data[sample == 'train', ],
+              # data = saaq_data, # Full sample.
+              # data = saaq_data[sex == 'M'], # Full sample of male drivers.
+              # data = saaq_data[sex == 'F'], # Full sample of male drivers.
+              weights = num) # , 
+# model = FALSE, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+summary(lm_spec)
 
 
 
