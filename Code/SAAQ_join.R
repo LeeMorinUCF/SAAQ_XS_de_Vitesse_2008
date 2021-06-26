@@ -73,7 +73,7 @@ tickets_file_name <- 'saaq_tickets_balances.csv' # Tickets and balances.
 driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
 
 
-# Set name of output file for point totals.
+# Set name of input file for point totals.
 # pts_out_file_name <- 'saaq_pts.csv'
 pts_bal_file_name <- 'saaq_point_balances.csv'
 

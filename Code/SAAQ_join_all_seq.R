@@ -69,7 +69,7 @@ data_out_path <- 'Data'
 
 # Set name of file with records of tickets. 
 # tickets_file_name <- 'saaq_tickets.csv' # Tickets only.
-tickets_file_name <- 'saaq_tickets_balances.csv' # Tickets and balances.
+tickets_file_name <- 'saaq_tickets_balances_by_seq.csv' # Tickets and balances.
 
 # Set name of file with counts of drivers without tickets.
 # Driver population includes drivers with no past tickets or current points.
@@ -77,14 +77,14 @@ tickets_file_name <- 'saaq_tickets_balances.csv' # Tickets and balances.
 driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
 
 
-# Set name of output file for point totals.
+# Set name of intput file for point totals.
 # pts_out_file_name <- 'saaq_pts.csv'
 pts_bal_file_name <- 'saaq_point_balances.csv'
 
 # Set name of output file for training, testing and estimation samples.
-out_train_file_name <- 'saaq_train.csv'
-out_test_file_name <- 'saaq_test.csv'
-out_estn_file_name <- 'saaq_estn.csv'
+out_train_file_name <- 'saaq_train_by_seq.csv'
+out_test_file_name <- 'saaq_test_by_seq.csv'
+out_estn_file_name <- 'saaq_estn_by_seq.csv'
 
 
 set.seed(42)
@@ -228,8 +228,8 @@ colnames(saaq_past_counts)
 lapply(saaq_past_counts, class)
 
 # Restrict sample to date range. 
-saaq_past_counts <- saaq_past_counts[, sample_sel := date >= sample_beg & 
-                                       date <= sample_end]
+saaq_past_counts <- saaq_past_counts[date >= sample_beg & 
+                                       date <= sample_end, ]
 
 # Add variables to match other datasets.
 saaq_past_counts[, points := 0]
@@ -268,33 +268,39 @@ in_path_file_name <- sprintf('%s/%s', data_in_path, tickets_file_name)
 saaq_tickets <- fread(file = in_path_file_name)
 
 # Restrict sample to date range. 
-saaq_tickets <- saaq_tickets[, sample_sel := date >= sample_beg & 
-                               date <= sample_end]
+saaq_tickets <- saaq_tickets[date >= sample_beg & 
+                               date <= sample_end, ]
 
 
+# Not necessary: date variable already standardized in balances by seq.
 # Standardize date variable.
 # Note that "date" is lagged one day to calculate point-balance counts.
 # The variable "dinf" refers to the date of infraction. 
-saaq_tickets[, date_bal := date]
-saaq_tickets[, date := dinf]
+# saaq_tickets[, date_bal := date]
+# saaq_tickets[, date := dinf]
 
 
-# Adjuste balance category variable.
+# Not necessary: balance category variable already standardized in balances by seq.
+# Adjust balance category variable.
 # For balances, status moves from prev_pts to curr_pts, 
 # during a day, as a driver gets a ticket (or not). 
 # FOr conditioning on past behaviour, prev_pts is the relevant balance category
 # for driver's status before getting a ticket.
-saaq_tickets[, curr_pts_bal := curr_pts]
-saaq_tickets[, curr_pts_grp_bal := curr_pts_grp]
-saaq_tickets[, curr_pts := prev_pts]
-saaq_tickets[, curr_pts_grp := prev_pts_grp]
+# saaq_tickets[, curr_pts_bal := curr_pts]
+# saaq_tickets[, curr_pts_grp_bal := curr_pts_grp]
+# saaq_tickets[, curr_pts := prev_pts]
+# saaq_tickets[, curr_pts_grp := prev_pts_grp]
 
 
 # Each unique ticket event happens once.
-saaq_tickets[, num := 1]
-saaq_tickets[, train_num := 1]
-saaq_tickets[, test_num := 1]
-saaq_tickets[, estn_num := 1]
+# But other events happen over several consecutive days.
+# saaq_tickets[, num := 1]
+# saaq_tickets[, train_num := 1]
+# saaq_tickets[, test_num := 1]
+# saaq_tickets[, estn_num := 1]
+saaq_tickets[, train_num := num]
+saaq_tickets[, test_num := num]
+saaq_tickets[, estn_num := num]
 
 
 colnames(saaq_tickets)
@@ -321,7 +327,7 @@ summary(saaq_tickets[, c(join_var_list), with = FALSE])
 # Obtain counts of drivers who left the curr_pts_grp == 0 category.
 # That is, all drivers who got a ticket at some point.
 # These are already contained in saaq_past_counts
-# (even if they are sometime in curr_pts_grp == 0)
+# (even if they are sometimes in curr_pts_grp == 0)
 # and should be removed from driver_counts to avoid double-counting these drivers.
 non_zero_counts <- unique(saaq_tickets[, c('seq', 'sex', 'age_grp')])
 non_zero_counts <- unique(non_zero_counts[, .N, by = c('sex', 'age_grp')])
@@ -359,7 +365,8 @@ summary(driver_counts)
 # Verify compatibility of all three datasets
 #-------------------------------------------------------------------------------
 
-
+# Note that the saaq_past_counts data are no longer needed
+# when the point balances are included with the tickets by seq.
 
 # The positive point balances come from here.
 summary(saaq_past_counts[, c(join_var_list), with = FALSE])
@@ -455,7 +462,7 @@ table(saaq_tickets[, train_sel],
 #-------------------------------------------------------------------------------
 
 # Training dataset.
-saaq_train <- rbind(saaq_past_counts[sample_sel == TRUE, c(train_var_list), with = FALSE], 
+saaq_train <- rbind(# saaq_past_counts[sample_sel == TRUE, c(train_var_list), with = FALSE], 
                     driver_counts[sample_sel == TRUE, c(train_var_list), with = FALSE], 
                     saaq_tickets[train_sel == TRUE, c(train_var_list), with = FALSE])
 colnames(saaq_train) <- join_var_list
@@ -466,7 +473,7 @@ saaq_train <- unique(saaq_train[, num := sum(num),
 
 
 # Testing dataset.
-saaq_test <- rbind(saaq_past_counts[sample_sel == TRUE, c(test_var_list), with = FALSE], 
+saaq_test <- rbind(# saaq_past_counts[sample_sel == TRUE, c(test_var_list), with = FALSE], 
                    driver_counts[sample_sel == TRUE, c(test_var_list), with = FALSE], 
                    saaq_tickets[test_sel == TRUE, c(test_var_list), with = FALSE])
 colnames(saaq_test) <- join_var_list
@@ -477,7 +484,7 @@ saaq_test <- unique(saaq_test[, num := sum(num),
 
 
 # Estimation dataset.
-saaq_estn <- rbind(saaq_past_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
+saaq_estn <- rbind(# saaq_past_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
                    driver_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
                    saaq_tickets[estn_sel == TRUE, c(estn_var_list), with = FALSE])
 colnames(saaq_estn) <- join_var_list
