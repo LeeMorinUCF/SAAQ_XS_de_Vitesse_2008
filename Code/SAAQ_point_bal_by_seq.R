@@ -610,7 +610,13 @@ summary(saaq_point_hist)
 
 # Drop the negative points for expiries. 
 # Keep only the tickets and the event placeholders.
-saaq_point_hist <- saaq_point_hist[points >= 0, ]
+# saaq_point_hist <- saaq_point_hist[points >= 0, ]
+# Keep only the *points* on the tickets
+# but not the balances or the event placeholders.
+saaq_point_hist[, points_chg := points]
+saaq_point_hist[points < 0, points := 0]
+# Really, I should call the points "points_chg"
+# because they are changes in demerit point balances.
 
 summary(saaq_point_hist)
 
@@ -618,26 +624,47 @@ summary(saaq_point_hist)
 # Number of drivers. 
 length(unique(saaq_point_hist[, seq]))
 # Each one is missing the last date on the first observation. Check. 
-
+# And the next date on the last observation. 
 
 saaq_point_hist[seq == 232526, c('seq', 'next_seq', 'date', 'next_date', 
-                                 'points', 'curr_pts', 'num')]
+                                 'points', 'points_chg', 'curr_pts', 'num')]
 
 # num is only missing on the observations missing the next_date:
 # these are drivers with no demerit points by the end of the sample. 
 # Drop the observations after the sample period. 
-summary(saaq_point_hist[date == '2010-03-31' & points == 0, ])
-# This accounts for all the missings. 
-summary(saaq_point_hist[!(date == '2010-03-31' & points == 0), ])
-nrow(saaq_point_hist[!(date == '2010-03-31' & points == 0), ])
+summary(saaq_point_hist[date == '2010-03-31' & points_chg == 0, ])
+summary(saaq_point_hist[date > '2010-03-31', ])
+# This accounts for all the missings (when negative points are dropped). 
+summary(saaq_point_hist[!(date == '2010-03-31' & points_chg == 0), ])
+# Also, point expiries after the sample should be excluded.
+summary(saaq_point_hist[!(date == '2010-03-31' & points_chg == 0) | 
+                          date < '2010-04-01', ])
+# Now this accounts for all the missings
+
+nrow(saaq_point_hist[!(date == '2010-03-31' & points_chg == 0), ])
+nrow(saaq_point_hist[!(date == '2010-03-31' & points_chg == 0) | 
+                       date < '2010-04-01', ])
 # Drop these non-events, since the balances that are measured
 # should not be included, since they go beyond the sample period. 
 
 
-saaq_point_hist <- saaq_point_hist[!(date == '2010-03-31' & points == 0), ]
+saaq_point_hist <- saaq_point_hist[!(date == '2010-03-31' & points_chg == 0), ]
+
+# Also exclude the observations after the end of the sample.
+# These are all negative point changes after the points expire. 
+saaq_point_hist <- saaq_point_hist[date < '2010-04-01', ]
+
 
 
 summary(saaq_point_hist)
+
+
+# Check (again) the number of driver days by driver.
+summary(saaq_point_hist[date < sample_end,  sum(num, na.rm = TRUE), by = 'seq'])
+
+
+# Any missing counts?
+summary(saaq_point_hist[is.na(num), ])
 
 
 #--------------------------------------------------------------------------------
@@ -702,7 +729,8 @@ length(past_active_list)
 table(saaq_point_hist[, past_active], useNA = 'ifany')
 # FALSE     TRUE 
 # 10749201  4772372 
-
+# FALSE     TRUE 
+# 14607958  6683066 
 
 #--------------------------------------------------------------------------------
 # Final variables selection

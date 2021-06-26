@@ -309,14 +309,18 @@ lapply(saaq_tickets, class)
 
 # Define categorical variables as factors.
 saaq_tickets[, sex := factor(sex, levels = c('M', 'F'))]
-saaq_tickets[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
-saaq_tickets[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
+saaq_tickets[age_grp %in% c('0-19', '0-15', '16-19'), age_grp := '0-19']
+saaq_tickets[age_grp %in% c('65-199', '65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 saaq_tickets[, age_grp := factor(age_grp, levels = age_group_list)]
 saaq_tickets[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 
 # Previous data prep has joined in curr_pts_grp, past_active.
 summary(saaq_tickets[, c(join_var_list), with = FALSE])
+
+
+# Check sum of driver days by driver.
+summary(saaq_tickets[, sum(num), by = 'seq'])
 
 
 ################################################################################
