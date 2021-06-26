@@ -339,7 +339,10 @@ rm(saaq_point_hist_bal)
 
 
 #--------------------------------------------------------------------------------
-# Add blank events for sample beginning and end.
+# Add blank events for checkpoints to calculate balances. 
+# Main checkpoints are for sample beginning and end.
+# Sample beginning includes two-year lead period for calculating initial balances.
+# Also add a date to separate points before and after april_fools_2008. 
 #--------------------------------------------------------------------------------
 
 # colnames(saaq_point_hist)
@@ -364,6 +367,15 @@ saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_ends)
 # Append blanks events at beginning of two-year sample lead time.
 saaq_point_hist_ends[, date := as.Date(sample_lead)]
 saaq_point_hist_ends[, dinf := as.Date(sample_lead)]
+
+# Append to the history.
+saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_ends)
+
+
+
+# Append blanks events at the date of the policy change.
+saaq_point_hist_ends[, date := as.Date(april_fools_2008)]
+saaq_point_hist_ends[, dinf := as.Date(april_fools_2008)]
 
 # Append to the history.
 saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_ends)
