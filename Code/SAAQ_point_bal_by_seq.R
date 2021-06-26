@@ -103,7 +103,7 @@ april_fools_2008 <- '2008-04-01'
 # Restrict date range to focus on sample. 
 sample_beg <- '2006-04-01'
 # Need a two-year lead to calculate two-year point balances.
-# sample_beg <- '2004-04-01'
+sample_lead <- '2004-04-01'
 # But note that this will also require an additional blank event 
 # at the first date of the sample, to properly count days
 # from the beginning of the sample. 
@@ -115,14 +115,14 @@ sample_end <- '2010-03-31'
 # # day_T <- as.numeric(as.Date('2010-12-31'))
 # day_T <- as.numeric(as.Date('2013-01-01')) # Allows for all points to expire.
 
-# Restrict date range to focus on sample. 
-day_1 <- as.numeric(as.Date(sample_beg))
-day_T <- as.numeric(as.Date(sample_end))
-date_list <- as.Date(seq(day_1, day_T), origin = as.Date('1970-01-01'))
-
-length(date_list)
-min(date_list)
-max(date_list)
+# # Restrict date range to focus on sample. 
+# day_1 <- as.numeric(as.Date(sample_beg))
+# day_T <- as.numeric(as.Date(sample_end))
+# date_list <- as.Date(seq(day_1, day_T), origin = as.Date('1970-01-01'))
+# 
+# length(date_list)
+# min(date_list)
+# max(date_list)
 
 
 #--------------------------------------------------------------------------------
@@ -177,7 +177,9 @@ saaq_point_hist[, date := dinf]
 
 
 # Restrict sample to date range. 
-saaq_point_hist <- saaq_point_hist[date >= sample_beg & 
+# saaq_point_hist <- saaq_point_hist[date >= sample_beg & 
+#                                      date <= sample_end, ]
+saaq_point_hist <- saaq_point_hist[date >= sample_lead & 
                                      date <= sample_end, ]
 
 
@@ -340,12 +342,12 @@ rm(saaq_point_hist_bal)
 # Add blank events for sample beginning and end.
 #--------------------------------------------------------------------------------
 
-colnames(saaq_point_hist)
+# colnames(saaq_point_hist)
 saaq_point_hist_ends <- copy(saaq_point_hist)
 # Blank events have no point changes.
 saaq_point_hist_ends[, points := 0]
 
-# Append blanks events at sample end.
+# Append blanks events at sample beginning.
 saaq_point_hist_ends[, date := as.Date(sample_beg)]
 saaq_point_hist_ends[, dinf := as.Date(sample_beg)]
 
@@ -354,6 +356,14 @@ saaq_point_hist_ends <- unique(saaq_point_hist_ends)
 # Confirm one row per driver.
 length(unique(saaq_point_hist[, seq])) == nrow(saaq_point_hist_ends)
 
+
+# Append to the history.
+saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_ends)
+
+
+# Append blanks events at beginning of two-year sample lead time.
+saaq_point_hist_ends[, date := as.Date(sample_lead)]
+saaq_point_hist_ends[, dinf := as.Date(sample_lead)]
 
 # Append to the history.
 saaq_point_hist <- rbind(saaq_point_hist, saaq_point_hist_ends)
@@ -534,39 +544,49 @@ saaq_point_hist[seq == 847237, c('seq', 'next_seq', 'date', 'next_date',
 
 # Verify that all point events are classified as one day.
 table(saaq_point_hist[points > 0, num], useNA = 'ifany')
-# Any zeros correspond to multiple tickets in one day.
+# Any zeros correspond to multiple tickets in one day, 
+# which were accounted for above.
 
 
 # Check that duplicate tickets on sample_beg are not lost.
 saaq_point_hist[points > 0 & is.na(num)]
-saaq_point_hist[seq == 232526, ]
+saaq_point_hist[seq == 232526, c('seq', 'next_seq', 'date', 'next_date', 
+                                 'points', 'curr_pts', 'num')]
+# Pattern of point levels proceeds as expected. 
 
-# Check that sum of days is a constant 4 years per driver.
+# Check that sum of days is a constant 6 years per driver.
+as.Date(sample_lead) - as.Date(sample_end)
 summary(saaq_point_hist[,  sum(num, na.rm = TRUE), by = 'seq'])
-
-# Consider only those occurring during the sample period.
-summary(saaq_point_hist[date <= sample_end,  sum(num, na.rm = TRUE), by = 'seq'])
-summary(saaq_point_hist[date < sample_end,  sum(num, na.rm = TRUE), by = 'seq'])
-
-
+# Some drivers have balances that extend up to two years after
+# the end of the sample: expiring demerit points. 
 head(saaq_point_hist[,  sum(num, na.rm = TRUE), by = 'seq'])
 
 
+# Extra days from the tickets that expire after the sample period.
+summary(saaq_point_hist[date == sample_end,  sum(num, na.rm = TRUE), by = 'seq'])
+# Up to two years, for those who got tickets on the last day of the sample. 
 
 
-# Check number of days per driver.
+# Consider only those occurring during the sample period.
+summary(saaq_point_hist[date < sample_end,  sum(num, na.rm = TRUE), by = 'seq'])
+# One person got 26 tickets in one day. Check.
 
+
+
+
+
+# Check drivers with a different number of days.
 # saaq_point_hist[,  sum_num := sum(num, na.rm = TRUE), by = 'seq']
-
 # saaq_point_hist[sum_num != 1460, c('seq', 'date', 'next_date', 'points', 'num', 'sum_num')]
-
 # length(unique(saaq_point_hist[sum_num != 1460, seq]))
 # [1] 31470
 # ...which is the number of drivers who got multiple tickets in a day.
 # This is ok because it is a reasonably defined trial. 
 
 
-# Final inspection. 
+
+
+# Inspection after driving days calculated. 
 summary(saaq_point_hist)
 
 
@@ -577,11 +597,35 @@ summary(saaq_point_hist)
 ################################################################################
 
 # Drop the negative points for expiries. 
-# Keep only the tickets.
+# Keep only the tickets and the event placeholders.
 saaq_point_hist <- saaq_point_hist[points >= 0, ]
 
 summary(saaq_point_hist)
 
+
+# Number of drivers. 
+length(unique(saaq_point_hist[, seq]))
+# Each one is missing the last date on the first observation. Check. 
+
+
+saaq_point_hist[seq == 232526, c('seq', 'next_seq', 'date', 'next_date', 
+                                 'points', 'curr_pts', 'num')]
+
+# num is only missing on the observations missing the next_date:
+# these are drivers with no demerit points by the end of the sample. 
+# Drop the observations after the sample period. 
+summary(saaq_point_hist[date == '2010-03-31' & points == 0, ])
+# This accounts for all the missings. 
+summary(saaq_point_hist[!(date == '2010-03-31' & points == 0), ])
+nrow(saaq_point_hist[!(date == '2010-03-31' & points == 0), ])
+# Drop these non-events, since the balances that are measured
+# should not be included, since they go beyond the sample period. 
+
+
+saaq_point_hist <- saaq_point_hist[!(date == '2010-03-31' & points == 0), ]
+
+
+summary(saaq_point_hist)
 
 
 #--------------------------------------------------------------------------------
@@ -620,24 +664,22 @@ saaq_point_hist <- saaq_point_hist[, c('seq', 'date', 'dinf',
 summary(saaq_point_hist)
 
 
-# Still some NA's:
-summary(saaq_point_hist[is.na(num), ])
-
-
-# All are concentrated on the boundary dates:
-saaq_point_hist[is.na(num) & date == '2006-04-01', .N]
-saaq_point_hist[is.na(num) & date == '2010-03-31', .N]
-saaq_point_hist[is.na(num) & date == '2010-04-01', .N]
-# > 976+2055434+3580
-# [1] 2059990
-saaq_point_hist[is.na(num), .N]
-
+# # Still some NA's?
+# summary(saaq_point_hist[is.na(num), ])
 # 
-length(unique(saaq_point_hist[, seq]))
+# 
+# # All were concentrated on the boundary dates:
+# saaq_point_hist[is.na(num) & date == '2006-04-01', .N]
+# saaq_point_hist[is.na(num) & date == '2010-03-31', .N]
+# saaq_point_hist[is.na(num) & date == '2010-04-01', .N]
+# # > 976+2055434+3580
+# # [1] 2059990
+# saaq_point_hist[is.na(num), .N]
 
-
-
-saaq_point_hist[is.na(num) & date %in% c('2006-04-01', '2010-03-31', '2010-04-01'), .N]
+# # Compare with number of distinct drivers. 
+# length(unique(saaq_point_hist[, seq]))
+# 
+# saaq_point_hist[is.na(num) & date %in% c('2006-04-01', '2010-03-31', '2010-04-01'), .N]
 
 
 
