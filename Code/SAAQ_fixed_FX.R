@@ -297,10 +297,14 @@ saaq_data[events == 1 & num > 1, ]
 # Generate a new dependent variable for fixed-effect regressions. 
 # For Frisch-Waugh-Lovell, this is the deviations from individual means.
 saaq_data[, avg_events := sum(events*num)/sum(num), by = 'seq']
+saaq_data[, dev_events := events - avg_events, by = 'seq']
 # summary(saaq_data[, c('events', 'avg_events')])
+
 # Create an FWL projection of the policy indicator.
 saaq_data[, avg_policy := sum(policy*num)/sum(num), by = 'seq']
-summary(saaq_data[, avg_policy])
+saaq_data[, dev_policy := policy - avg_policy, by = 'seq']
+
+summary(saaq_data[, c('dev_events', 'dev_policy')])
 
 
 
@@ -311,12 +315,13 @@ for (curr_pts_level in curr_pts_grp_list) {
   print(sprintf('FWL projections for curr_pts_grp %s', curr_pts_level))
   
   # Generate a new column to indicate the average time at this point level. 
+  saaq_data[, is_curr_pts_grp := (curr_pts_grp == curr_pts_level)]
   saaq_data[, avg_FWL_count := 
-              sum((curr_pts_grp == curr_pts_level)*num)/sum(num), by = 'seq']
+              sum(is_curr_pts_grp*num)/sum(num), by = 'seq']
 
   # Allocate this variable to a new column.
   col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
-  saaq_data[, col_var_name] <- saaq_data[, avg_FWL_count]
+  saaq_data[, col_var_name] <- saaq_data[, is_curr_pts_grp - avg_FWL_count]
   
   
   print(sprintf('FWL projections for policy*curr_pts_grp %s', curr_pts_level))
@@ -324,17 +329,17 @@ for (curr_pts_level in curr_pts_grp_list) {
   # Now calculate a new column to indicate the average time at this point level, 
   # during the post-policy period: a policy-points-level interaction. 
   saaq_data[, avg_FWL_count := 
-              sum((curr_pts_grp == curr_pts_level)*policy*num)/sum(num), by = 'seq']
+              sum(is_curr_pts_grp*policy*num)/sum(num), by = 'seq']
   
   # Allocate this variable to a new column.
   col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
-  saaq_data[, col_var_name] <- saaq_data[, avg_FWL_count]
+  saaq_data[, col_var_name] <- saaq_data[, is_curr_pts_grp*policy - avg_FWL_count]
   
 }
 
 
 colnames(saaq_data)
-summary(saaq_data)
+# summary(saaq_data)
 
 
 ################################################################################
@@ -350,7 +355,7 @@ var_list <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
 var_list <- var_list[2:length(var_list)]
 
 
-fmla_str <- sprintf('avg_events ~ %s',
+fmla_str <- sprintf('dev_events ~ %s',
                     paste(var_list, collapse = " + "))
 fmla <- as.formula(fmla_str)
 
@@ -454,7 +459,7 @@ var_list_2 <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list))
 var_list <- c(var_list_1, var_list_2)
 
 # Eliminate the constant term.
-fmla_str <- sprintf('avg_events ~ 0 + %s',
+fmla_str <- sprintf('dev_events ~ 0 + %s',
                     paste(var_list, collapse = " + "))
 fmla <- as.formula(fmla_str)
 
