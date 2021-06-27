@@ -36,6 +36,13 @@ library(data.table)
 # Load PRROC package for calculating area under the ROC curve.
 library(PRROC)
 
+# Load xtable library to create tex scripts for tables.
+library(xtable)
+
+# Load scales library because it has a function
+# to display large numbers in comma format.
+library(scales)
+
 
 ################################################################################
 # Set parameters for file IO
@@ -66,8 +73,11 @@ set.seed(42)
 
 
 
-# Figures are stored in 'Figures/'.
-fig_path <- 'Figures'
+# Set directory for storing figures.
+fig_dir <- 'Figures'
+
+# Set directory for storing tables.
+tab_dir <- 'Tables'
 
 
 ################################################################################
@@ -664,6 +674,20 @@ print(c_value)
 # Equality of parameters decisively rejected. 
 
 
+# Collect other parameters to count observations. 
+
+summ_A$num_seq <- length(unique(saaq_data[sample == 'train', seq]))
+summ_M$num_seq <- length(unique(saaq_data[sex == 'M' & sample == 'train', seq]))
+summ_F$num_seq <- length(unique(saaq_data[sex == 'F' & sample == 'train', seq]))
+
+
+# Collect all other parameters into a table of statistics. 
+FFX_stats <- data.frame(num_drivers = c(summ_A$num_seq, summ_M$num_seq, summ_F$num_seq), 
+                        num_obs = c(summ_A$num, summ_M$num, summ_F$num), 
+                        SSR = c(summ_A$SSR, summ_M$SSR, summ_F$SSR))
+
+
+
 
 
 #-------------------------------------------------------------------------------
@@ -744,8 +768,10 @@ curr_pts_labels <- gsub('_', '-', curr_pts_labels)
 
 FE_estimates[var_nums, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 
-fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.eps', fig_path)
-postscript(fig_filename)
+# fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.eps', fig_dir)
+# postscript(fig_filename)
+fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.pdf', fig_dir)
+pdf(fig_filename)
 plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'], 
      xlab = 'Demerit Point Category', 
      ylab = 'Policy Effect', 
@@ -777,6 +803,123 @@ dev.off()
 # Generate LaTeX tables of estimates
 #-------------------------------------------------------------------------------
 
+# Create a table for display. 
+colnames(FE_estimates)
+FE_est_out <- FE_estimates[, c('Est_A', 'SE_A', 
+                               'Est_M', 'SE_M', 
+                               'Est_F', 'SE_F')]
+
+
+# # Convert the table to a LaTex table.
+# out_xtable <- xtable(corr_matrix[, ],
+#                      digits = 3, label = 'tab:corr',
+#                      caption = 'Correlation Matrix')
+
+# Output to TeX file.
+tab_file_path <- sprintf('%s/FE_regs.tex', tab_dir)
+# cat(print(out_xtable), file = tab_file_name, append = FALSE)
+
+
+
+# Ouput TeX code for tables.
+header <- "Estimates from Fixed Effects Regression Models"
+caption <- 'Estimates from Fixed Effects Regression Models'
+description <- c('Fixed effects regression coefficients after estimating driver-specific intercepts..', 
+                 'Samples are drawn by selecting 40 per cent of the drivers in each sample.')
+label <- 'FE_regs'
+
+
+# Output header.
+cat(sprintf('%% %s \n\n', header),
+    file = tab_file_path, append = FALSE)
+cat('\\begin{table}% [ht] \n', file = tab_file_path, append = TRUE)
+cat('\\centering \n', file = tab_file_path, append = TRUE)
+cat('\\begin{tabular}{l r r r r r r} \n', file = tab_file_path, append = TRUE)
+cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+# Output column headers.
+cat('\nSample \n', file = tab_file_path, append = TRUE)
+for (sample_name in c('All', 'Male', 'Female')) {
+  cat(sprintf(" & \\multicolumn{2}{c}{%s  Drivers} ", sample_name),
+      file = tab_file_path, append = TRUE)
+}
+cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+cat('\n \\cmidrule(lr){1-1}\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7} \n', 
+    file = tab_file_path, append = TRUE)
+
+cat('\nEstimate ', file = tab_file_path, append = TRUE)
+for (i in 1:3) {
+  cat(' & Coefficient & Std. Error ', file = tab_file_path, append = TRUE)
+}
+cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+
+# Output table of estimates.
+cat('\\multicolumn{4}{l}{\\textbf{Demerit points group indicators:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
+for (row in 1:nrow(FE_est_out)) {
+  
+  
+  var_name <- rownames(FE_est_out)[row]
+  var_name <- gsub('curr_pts_', '', var_name)
+  var_name <- gsub('_policy', '', var_name)
+  var_name <- gsub('_', '-', var_name)
+  var_name <- sprintf('%s points', var_name)
+  
+  cat(sprintf('%s ', var_name), file = tab_file_path, append = TRUE)
+  for (col in 1:ncol(FE_est_out)) {
+    
+    cat(sprintf(' & %6.3f ', FE_est_out[row, col]*1000), 
+        file = tab_file_path, append = TRUE)
+  }
+  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  if (row == 13) {
+    cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+    cat('\\multicolumn{4}{l}{\\textbf{Policy and points group interactions:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  }
+  
+}
+cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+# Output summary statistics.
+# FFX_stats
+
+cat('\nDrivers \n', file = tab_file_path, append = TRUE)
+for (i in 1:3) {
+  num_drivers <- comma_format()(FFX_stats[i, 'num_drivers'])
+  cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_drivers), 
+      file = tab_file_path, append = TRUE)
+}
+cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+cat('\nDriver days \n', file = tab_file_path, append = TRUE)
+for (i in 1:3) {
+  num_obs <- comma_format()(FFX_stats[i, 'num_obs'])
+  cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_obs), 
+      file = tab_file_path, append = TRUE)
+}
+cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+cat('\nSSR \n', file = tab_file_path, append = TRUE)
+for (i in 1:3) {
+  SSR <- comma_format()(FFX_stats[i, 'SSR'])
+  cat(sprintf(' & \\multicolumn{2}{r}{%s} ', SSR), 
+      file = tab_file_path, append = TRUE)
+}
+cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+
+# Output closing arguments.
+cat('\\end{tabular} \n', file = tab_file_path, append = TRUE)
+cat(sprintf('\\caption{%s} \n', caption), file = tab_file_path, append = TRUE)
+for (desc_row in 1:length(description)) {
+  cat(sprintf('%s \n', description[desc_row]), file = tab_file_path, append = TRUE)
+}
+cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
+cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
 
 
 

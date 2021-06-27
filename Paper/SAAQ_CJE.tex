@@ -1,0 +1,93 @@
+\documentclass[11pt]{paper}
+\usepackage{fullpage}
+\usepackage{booktabs}
+
+% For rendering eps figures to pdf on different platforms. 
+\ifx\pdftexversion\undefined
+    \usepackage[dvips]{graphicx}
+\else
+    \usepackage[pdftex]{graphicx}
+    \usepackage{epstopdf}
+    \epstopdfsetup{suffix=}
+\fi
+
+\setlength{\tabcolsep}{5pt}
+
+\begin{document}
+
+
+%\phantom{0}
+%\vspace{1.0in}
+%
+%
+%\begin{centering}
+%
+%{\huge 
+%Data Availability Guidelines and Code Base  \\
+%\bigskip
+%for \\
+%\bigskip
+%{\it ``Diversity Effects or Dissent Aversion? \\
+%Identification and Estimation in Judicial Panel Voting''} \\
+%}
+%
+%\vspace{1.25in}
+%
+%
+%{\large 
+%Charles M. Cameron \\
+%{\it Center for the Study of Democratic Politics, Princeton University} \\
+%\medskip
+%Lealand Morin \\
+%{\it College of Business, University of Central Florida} \\
+%\medskip
+%Harry J. Paarsch \\
+%{\it College of Business, University of Central Florida} \\
+%}
+%
+%\vspace{1.25in}
+%
+%
+%
+%\today
+%
+%\end{centering}
+
+%\title[Penalties for Speeding and their Effect on Moving Violations]{Penalties for Speeding and their Effect on Moving Violations: Evidence from Quebec Drivers}
+%
+%\authors{V.~Chandler, L.~Morin, J.~Penney} 
+%
+%\authorone{Vincent Chandler}{Universit\'{e} du Qu\'{e}bec en Outaouais}
+%
+%\authortwo{Lealand Morin}{University of Central Florida} 
+%
+%\authorthree{Jeffrey Penney}{University of Alberta} 
+
+
+% \pagebreak
+
+\section*{Fixed Effects Regressions}
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp.pdf}
+\caption{Policy change and demerit points group interactions}
+%Coefficients on the interaction term between the change in the policy 
+%by the current demerit points category of each driver.
+%Estimates were calculated by fitting a fixed effects regression model, 
+%with intercept coefficients for each driver. 
+%% 
+%Policy effects for male drivers are shown in black and those for females are shown in grey. 
+%% 
+%The dashed lines indicate upper and lower 95\% confidence intervals. }
+% 
+\label{fig:FE-regs}
+\end{figure}
+
+
+\input{../Tables/FE_regs}
+
+
+
+\end{document}
