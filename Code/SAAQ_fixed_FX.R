@@ -349,11 +349,9 @@ colnames(saaq_data)
 
 ################################################################################
 # Fit fixed-effects models
-################################################################################
-
-#-------------------------------------------------------------------------------
+# Fixed Effects Regressions: 
 # Current points group only
-#-------------------------------------------------------------------------------
+################################################################################
 
 # Set the zero-points category as the benchmark.
 var_list <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
@@ -451,8 +449,15 @@ summary(lm_spec)
 
 
 
-#-------------------------------------------------------------------------------
+################################################################################
+# Fixed Effects Regressions: 
 # Current points group and policy interaction
+################################################################################
+
+
+
+#-------------------------------------------------------------------------------
+# Male drivers
 #-------------------------------------------------------------------------------
 
 # Set the zero-points category as the benchmark.
@@ -493,16 +498,26 @@ summ_M$coefficients
 object.size(summ_M$weights)
 object.size(summ_M$residuals)
 
-# Drop them to focus on estimates.
+# Calculate (observation-weighted) sum of squared residuals.
+SSR_M <- sum(summ_M$weights*summ_M$residuals^2)
+num_M <- sum(summ_M$weights)
+
+# Drop large elements to focus on estimates.
 summ_M$weights <- NULL
 summ_M$residuals <- NULL
 
+# Store SSR and number of observations. 
+summ_M$SSR <- SSR_M
+summ_M$num <- num_M
 
 # Initialize a matrix of coefficients. 
 FE_estimates <- summ_M$coefficients[, c('Estimate', 'Std. Error')]
 colnames(FE_estimates) <- c('Est_M', 'SE_M')
 
 
+#-------------------------------------------------------------------------------
+# Female drivers
+#-------------------------------------------------------------------------------
 
 # Fit regression model on training sample for female drivers. 
 lm_spec <- lm(formula = fmla, 
@@ -521,9 +536,20 @@ summary(lm_spec)
 # Store the item for output. 
 summ_F <- summary(lm_spec)
 
+# Calculate (observation-weighted) sum of squared residuals.
+SSR_F <- sum(summ_F$weights*summ_F$residuals^2)
+num_F <- sum(summ_F$weights)
+
+
 # Drop large elements to focus on estimates.
 summ_F$weights <- NULL
 summ_F$residuals <- NULL
+
+# Store SSR and number of observations. 
+summ_F$SSR <- SSR_F
+summ_F$num <- num_F
+
+
 
 
 # Initialize a matrix of coefficients. 
@@ -532,11 +558,118 @@ FE_estimates <- cbind(FE_estimates,
 colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F')
 
 
+#-------------------------------------------------------------------------------
+# All drivers
+#-------------------------------------------------------------------------------
+
+# Fit regression model on training sample for female drivers. 
+lm_spec <- lm(formula = fmla, 
+              data = saaq_data[sample == 'train', ],
+              # data = saaq_data, # Full sample.
+              # data = saaq_data[sex == 'M'], # Full sample of male drivers.
+              # data = saaq_data[sex == 'M' & sample == 'train'], # Training sample of male drivers.
+              # data = saaq_data[sex == 'F'], # Full sample of female drivers.
+              # data = saaq_data[sex == 'F' & sample == 'train'], # Training sample of female drivers.
+              weights = num, 
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+summary(lm_spec)
+
+# Store the item for output. 
+summ_A <- summary(lm_spec)
+
+
+# Calculate (observation-weighted) sum of squared residuals.
+SSR_A <- sum(summ_A$weights*summ_A$residuals^2)
+num_A <- sum(summ_A$weights)
+
+
+# Drop large elements to focus on estimates.
+summ_A$weights <- NULL
+summ_A$residuals <- NULL
+
+# Store SSR and number of observations. 
+summ_A$SSR <- SSR_A
+summ_A$num <- num_A
+
+
+
+
+# Initialize a matrix of coefficients. 
+# FE_estimates <- cbind(FE_estimates,
+#                       summ_A$coefficients[c(1:13, 14, 15:27), c('Estimate', 'Std. Error')])
+FE_estimates <- cbind(FE_estimates, 
+                      summ_A$coefficients[, c('Estimate', 'Std. Error')])
+colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F',
+                            'Est_A', 'SE_A')
+
+
+################################################################################
+# Compile estimates for output
+################################################################################
 
 
 #-------------------------------------------------------------------------------
-# Calculate output
+# Calculate an F-statistic to test the hypothesis 
+# of equal coefficients for males and females
 #-------------------------------------------------------------------------------
+
+# Restricted model has equal coefficients across the sexes.
+RSSR <- summ_A$SSR
+
+# Unrestricted model has two of every parameter. 
+USSR <- summ_M$SSR + summ_F$SSR
+
+# Both are equal. Check.
+# num_obs <- summ_A$num
+num_obs <- summ_M$num + summ_F$num
+
+# Number of parameters is the same across models.
+nrow(summ_A$coefficients)
+nrow(summ_M$coefficients)
+nrow(summ_F$coefficients)
+# Full model has twice as many parameters (males and females).
+num_vars <- nrow(summ_M$coefficients) + nrow(summ_F$coefficients)
+
+# A test of restrictions on each male/female parameter.
+num_restr <- nrow(summ_A$coefficients)
+
+# Calculate the F-statistic. 
+F_stat <- (RSSR - USSR)/num_restr /
+  USSR*(num_obs - num_vars - 1)
+
+print('F_stat = ')
+print(F_stat)
+# [1] "F_stat = "
+# [1] 2384077
+
+
+# Calculate the p-value.
+p_value <- pf(q = F_stat, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower.tail = FALSE)
+
+print('p_value = ')
+print(p_value)
+# [1] "p_value = "
+# [1] 0
+
+# In that case, calculate a critical value at the 1% level.
+c_value <- qf(p = 0.05, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower.tail = FALSE)
+
+print('c_value = ')
+print(c_value)
+# [1] "c_value = "
+# [1] 1.485677
+
+# Equality of parameters decisively rejected. 
+
+
+
+
+#-------------------------------------------------------------------------------
+# Table of estimates
+#-------------------------------------------------------------------------------
+
 
 # Calculate confidence bounds on estimates. 
 FE_estimates <- cbind(FE_estimates, FE_estimates*0)
@@ -544,8 +677,8 @@ FE_estimates <- cbind(FE_estimates, FE_estimates*0)
 # FE_estimates[, 'CI_L_M'] <- NA
 # FE_estimates[, 'CI_U_F'] <- NA
 # FE_estimates[, 'CI_L_F'] <- NA
-colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F', 
-                            'CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')
+colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F', 'Est_A', 'SE_A', 
+                            'CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F', 'CI_L_A', 'CI_U_A')
 
 FE_estimates[, 'CI_U_M'] <- FE_estimates[, 'Est_M'] + 
   qnorm(0.975)*FE_estimates[, 'SE_M']
@@ -560,8 +693,19 @@ FE_estimates[, 'CI_L_F'] <- FE_estimates[, 'Est_F'] -
   qnorm(0.975)*FE_estimates[, 'SE_F']
 
 
-FE_estimates[, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
+FE_estimates[, 'CI_U_A'] <- FE_estimates[, 'Est_A'] + 
+  qnorm(0.975)*FE_estimates[, 'SE_A']
 
+FE_estimates[, 'CI_L_A'] <- FE_estimates[, 'Est_A'] - 
+  qnorm(0.975)*FE_estimates[, 'SE_A']
+
+
+FE_estimates[, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F', 'CI_L_A', 'CI_U_A')]
+
+
+#-------------------------------------------------------------------------------
+# Plot estimates and standard error bands
+#-------------------------------------------------------------------------------
 
 
 # Plot levels of tickets before policy change.
@@ -579,7 +723,11 @@ lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
 lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
 lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
-
+# All drivers in red (not for publication). 
+# lines(1:n_vars, FE_estimates[var_nums, 'Est_A'], col = 'red', lwd = 3)
+# lines(1:n_vars, FE_estimates[var_nums, 'CI_U_A'], col = 'red', lwd = 3, lty = 'dashed')
+# lines(1:n_vars, FE_estimates[var_nums, 'CI_L_A'], col = 'red', lwd = 3, lty = 'dashed')
+# Similar to the numbers for males.
 
 
 
@@ -614,11 +762,20 @@ lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
 lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
 lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
+# # All drivers in red (not for publication). 
+# lines(1:n_vars, FE_estimates[var_nums, 'Est_A'], col = 'red', lwd = 3)
+# lines(1:n_vars, FE_estimates[var_nums, 'CI_U_A'], col = 'red', lwd = 3, lty = 'dashed')
+# lines(1:n_vars, FE_estimates[var_nums, 'CI_L_A'], col = 'red', lwd = 3, lty = 'dashed')
+# Similar to the numbers for males.
+
 legend('topleft', legend = c('Male Drivers', 'Female Drivers'), 
        col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
 dev.off()
 
 
+#-------------------------------------------------------------------------------
+# Generate LaTeX tables of estimates
+#-------------------------------------------------------------------------------
 
 
 
