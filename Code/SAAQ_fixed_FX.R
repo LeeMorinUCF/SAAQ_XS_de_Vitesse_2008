@@ -557,32 +557,57 @@ FE_estimates[, 'CI_L_F'] <- FE_estimates[, 'Est_F'] -
 
 FE_estimates[, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 
-# Plot levels of tickets before policy change.
-plot(FE_estimates[1:14, 'Est_M'], type = 'l', col = 'blue', lwd = 2, 
-     ylim = c(0, 0.025))
-lines(1:14, FE_estimates[1:14, 'CI_U_M'], col = 'blue', lwd = 2)
-lines(1:14, FE_estimates[1:14, 'CI_L_M'], col = 'blue', lwd = 2)
 
-lines(1:14, FE_estimates[1:14, 'Est_F'], col = 'red', lwd = 2)
-lines(1:14, FE_estimates[1:14, 'CI_L_F'], col = 'red', lwd = 2)
-lines(1:14, FE_estimates[1:14, 'CI_L_F'], col = 'red', lwd = 2)
+
+# Plot levels of tickets before policy change.
+var_nums <- 1:13
+n_vars <- length(var_nums)
+plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'blue', lwd = 2, 
+     ylim = c(-0.02, 0.02))
+lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'blue', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'blue', lwd = 2)
+
+lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = 'red', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = 'red', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = 'red', lwd = 2)
+
+
+
 
 
 # Plot levels of tickets after policy change.
-FE_estimates[15:28, c('Est_M', 'Est_F')]
+n_vars_L <- 14
+n_vars_U <- 27
+var_nums <- n_vars_L:n_vars_U
+n_vars <- length(var_nums)
 
-plot(FE_estimates[15:28, 'Est_M'], type = 'l', col = 'blue', lwd = 2, 
-     ylim = c(-0.020, 0.0))
-lines(1:14, FE_estimates[15:28, 'CI_U_M'], col = 'blue', lwd = 2)
-lines(1:14, FE_estimates[15:28, 'CI_L_M'], col = 'blue', lwd = 2)
+curr_pts_labels <- rownames(FE_estimates)[var_nums]
+curr_pts_labels <- gsub('curr_pts_', '', curr_pts_labels)
+curr_pts_labels <- gsub('_policy', '', curr_pts_labels)
+curr_pts_labels <- gsub('_', '-', curr_pts_labels)
+
+FE_estimates[var_nums, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 
 
-# plot(FE_estimates[15:28, 'Est_F'], type = 'l', col = 'red', lwd = 2, 
-#      ylim = c(-0.020, 0.0))
 
-lines(1:14, FE_estimates[15:28, 'Est_F'], col = 'red', lwd = 2)
-lines(1:14, FE_estimates[15:28, 'CI_L_F'], col = 'red', lwd = 2)
-lines(1:14, FE_estimates[15:28, 'CI_L_F'], col = 'red', lwd = 2)
+plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'], 
+     xlab = 'Demerit Point Category', 
+     ylab = 'Policy Effect', 
+     type = 'l', col = 'blue', lwd = 2, 
+     ylim = c(-0.002, 0.002), xaxt = 'n')
+axis(1, at = 1:n_vars, labels = curr_pts_labels)
+lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'blue', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'blue', lwd = 2)
+
+lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = 'red', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = 'red', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = 'red', lwd = 2)
+
+
+
+
 
 
 
