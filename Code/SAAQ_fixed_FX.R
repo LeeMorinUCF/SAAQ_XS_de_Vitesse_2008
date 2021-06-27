@@ -65,6 +65,11 @@ test_file_name <- 'saaq_test_by_seq.csv'
 set.seed(42)
 
 
+
+# Figures are stored in 'Figures/'.
+fig_path <- 'Figures'
+
+
 ################################################################################
 # Set Parameters for variables
 ################################################################################
@@ -562,15 +567,17 @@ FE_estimates[, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 # Plot levels of tickets before policy change.
 var_nums <- 1:13
 n_vars <- length(var_nums)
-plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'blue', lwd = 2, 
+plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'black', lwd = 3, 
      ylim = c(-0.02, 0.02))
-lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'blue', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'blue', lwd = 2)
+lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
 
-lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = 'red', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = 'red', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = 'red', lwd = 2)
+# Female drivers in grey.
+grey_F <- gray.colors(n = 1, start = 0.6, end = 0.6)
+lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
 
 
@@ -589,24 +596,27 @@ curr_pts_labels <- gsub('_', '-', curr_pts_labels)
 
 FE_estimates[var_nums, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 
-
-
+fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.eps', fig_path)
+postscript(fig_filename)
 plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'], 
      xlab = 'Demerit Point Category', 
      ylab = 'Policy Effect', 
-     type = 'l', col = 'blue', lwd = 2, 
-     ylim = c(-0.002, 0.002), xaxt = 'n')
-axis(1, at = 1:n_vars, labels = curr_pts_labels)
-lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'blue', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'blue', lwd = 2)
+     type = 'l', col = 'black', lwd = 3, 
+     ylim = c(-0.002, 0.002), xaxt = 'n', 
+     cex.lab = 1.5,    # X-axis and Y-axis labels size
+     cex.axis = 1.0)
+axis(1, at = 1:n_vars, labels = curr_pts_labels, cex = 1.5)
+lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
 
-lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = 'red', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = 'red', lwd = 2)
-lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = 'red', lwd = 2)
+lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
+lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
+lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
-
-
+legend('topleft', legend = c('Male Drivers', 'Female Drivers'), 
+       col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
+dev.off()
 
 
 
