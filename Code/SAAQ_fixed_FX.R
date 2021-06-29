@@ -481,6 +481,49 @@ for (file_tag in file_tag_list) {
     SSR_sub <- sum(summ_sub$weights*summ_sub$residuals^2)
     num_sub <- sum(summ_sub$weights)
     
+    # Store residuals. 
+    if (sex_sel == 'A') {
+      saaq_data[sub_sel_obsn == TRUE, resid_A := summ_sub$residuals]
+      saaq_data[sub_sel_obsn == TRUE, wts_A := summ_sub$weights]
+    } else if (sex_sel == 'M') {
+      saaq_data[sub_sel_obsn == TRUE, resid_M := summ_sub$residuals]
+      saaq_data[sub_sel_obsn == TRUE, wts_M := summ_sub$weights]
+    } else if (sex_sel == 'F') {
+      saaq_data[sub_sel_obsn == TRUE, resid_F := summ_sub$residuals]
+      saaq_data[sub_sel_obsn == TRUE, wts_F := summ_sub$weights]
+    } 
+    
+    
+    # Checking the SSR calculation. 
+    summary(saaq_data[, resid_A])
+    saaq_data[sel_obsn == TRUE, .N]
+    saaq_data[sel_obsn == FALSE, .N]
+    summary(saaq_data[sel_obsn == TRUE, resid_A])
+    summary(saaq_data[sel_obsn == TRUE, resid_M])
+    summary(saaq_data[sel_obsn == TRUE, resid_F])
+    summary(saaq_data[sel_obsn == TRUE, wts_A])
+    summary(saaq_data[sel_obsn == TRUE, wts_M])
+    summary(saaq_data[sel_obsn == TRUE, wts_F])
+    
+    summary(saaq_data[, num])
+    summary(saaq_data[sel_obsn == TRUE, resid_A - resid_M]*1000)
+    summary(saaq_data[sel_obsn == TRUE, resid_A - resid_F]*1000)
+    summary(saaq_data[sel_obsn == TRUE, resid_M - resid_F])
+    summary(saaq_data[sel_obsn == TRUE, resid_A*2 - resid_M*2]*1000)
+    summary(saaq_data[sel_obsn == TRUE, resid_A*2 - resid_F*2]*1000)
+    saaq_data[sel_obsn == TRUE, sum(num*(resid_A*2 - resid_M*2), na.rm = TRUE)]
+    saaq_data[sel_obsn == TRUE, sum(num*(resid_A*2 - resid_F*2), na.rm = TRUE)]
+    # This is the problem: model F fits worse than model A.
+    plot(saaq_data[sel_obsn == TRUE, resid_F])
+    
+    # The weights are the same (both the number of drivers).
+    summary(saaq_data[sel_obsn == TRUE, wts_A == wts_M])
+    summary(saaq_data[sel_obsn == TRUE, wts_A == wts_F])
+    summary(saaq_data[sel_obsn == TRUE, wts_A == num])
+    summary(saaq_data[sel_obsn == TRUE, wts_M == num])
+    summary(saaq_data[sel_obsn == TRUE, wts_F == num])
+    
+    
     # Drop large elements to focus on estimates.
     summ_sub$weights <- NULL
     summ_sub$residuals <- NULL
@@ -586,9 +629,9 @@ for (file_tag in file_tag_list) {
   num_obs <- summ_M$num + summ_F$num
   
   # Number of parameters is the same across models.
-  nrow(summ_A$coefficients)
-  nrow(summ_M$coefficients)
-  nrow(summ_F$coefficients)
+  # nrow(summ_A$coefficients)
+  # nrow(summ_M$coefficients)
+  # nrow(summ_F$coefficients)
   # Full model has twice as many parameters (males and females).
   num_vars <- nrow(summ_M$coefficients) + nrow(summ_F$coefficients)
   
@@ -658,9 +701,9 @@ for (file_tag in file_tag_list) {
   
   
   # Collect all other parameters into a table of statistics. 
-  FFX_stats <- data.frame(num_drivers = c(summ_A$num_seq, summ_sub$num_seq, summ_F$num_seq), 
-                          num_obs = c(summ_A$num, summ_sub$num, summ_F$num), 
-                          SSR = c(summ_A$SSR, summ_sub$SSR, summ_F$SSR))
+  FFX_stats <- data.frame(num_drivers = c(summ_A$num_seq, summ_M$num_seq, summ_F$num_seq), 
+                          num_obs = c(summ_A$num, summ_M$num, summ_F$num), 
+                          SSR = c(summ_A$SSR, summ_M$SSR, summ_F$SSR))
   
   
   
