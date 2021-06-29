@@ -417,6 +417,7 @@ for (file_tag in file_tag_list) {
   # 
   # sex_sel_list <- c('A', 'M', 'F')
   # sex_sel <- 'M'
+  # sex_sel <- 'F'
   for (sex_sel in sex_sel_list) {
     
     print(sprintf('Estimating model for sex %s drivers in points group %s.', 
@@ -509,12 +510,12 @@ for (file_tag in file_tag_list) {
     summary(saaq_data[sel_obsn == TRUE, resid_A - resid_M]*1000)
     summary(saaq_data[sel_obsn == TRUE, resid_A - resid_F]*1000)
     summary(saaq_data[sel_obsn == TRUE, resid_M - resid_F])
-    summary(saaq_data[sel_obsn == TRUE, resid_A*2 - resid_M*2]*1000)
-    summary(saaq_data[sel_obsn == TRUE, resid_A*2 - resid_F*2]*1000)
-    saaq_data[sel_obsn == TRUE, sum(num*(resid_A*2 - resid_M*2), na.rm = TRUE)]
-    saaq_data[sel_obsn == TRUE, sum(num*(resid_A*2 - resid_F*2), na.rm = TRUE)]
+    summary(saaq_data[sel_obsn == TRUE, resid_A^2 - resid_M^2]*1000)
+    summary(saaq_data[sel_obsn == TRUE, resid_A^2 - resid_F^2]*1000)
+    saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_M^2), na.rm = TRUE)]
+    saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_F^2), na.rm = TRUE)]
     # This is the problem: model F fits worse than model A.
-    plot(saaq_data[sel_obsn == TRUE, resid_F])
+    # plot(saaq_data[sel_obsn == TRUE, resid_F])
     
     # The weights are the same (both the number of drivers).
     summary(saaq_data[sel_obsn == TRUE, wts_A == wts_M])
@@ -522,6 +523,26 @@ for (file_tag in file_tag_list) {
     summary(saaq_data[sel_obsn == TRUE, wts_A == num])
     summary(saaq_data[sel_obsn == TRUE, wts_M == num])
     summary(saaq_data[sel_obsn == TRUE, wts_F == num])
+    
+    # Test after running model F:
+    saaq_data[sub_sel_obsn == TRUE, sum(wts_F, na.rm = TRUE)]
+    num_sub
+    
+    SSR_sub
+    saaq_data[sub_sel_obsn == TRUE, sum(num*resid_F^2, na.rm = TRUE)]
+    
+    
+    summary(saaq_data[sub_sel_obsn == TRUE, num])
+    summary(saaq_data[sub_sel_obsn == TRUE, resid_F^2])
+    summary(summ_sub$residuals^2)
+    
+    
+    saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_F^2), na.rm = TRUE)]
+    saaq_data[sel_obsn == TRUE, sum((resid_A^2 - resid_F^2), na.rm = TRUE)]
+    
+    
+    # saaq_data[sub_sel_obsn == TRUE, sex]
+    
     
     
     # Drop large elements to focus on estimates.
