@@ -103,7 +103,7 @@ april_fools_2008 <- '2008-04-01'
 # Restrict date range to focus on sample. 
 sample_beg <- '2006-04-01'
 # Need a two-year lead to calculate two-year point balances.
-sample_lead <- '2004-04-01'
+sample_lead <- '2002-04-01'
 # But note that this will also require an additional blank event 
 # at the first date of the sample, to properly count days
 # from the beginning of the sample. 
@@ -148,7 +148,8 @@ curr_pts_cut_points <- c(seq(-0.5, 10.5, by = 1), 20.5, 30.5, 150)
 
 
 # Create a list of active drivers before the policy change.
-past_active_pts_list <- c('6', '7', '8', '9', '10')
+# past_active_pts_list <- c('6', '7', '8', '9', '10')
+past_active_pts_list <- curr_pts_grp_list[7:length(curr_pts_grp_list)]
 
 
 ################################################################################
@@ -693,19 +694,24 @@ saaq_point_hist[, 'curr_pts_grp'] <- cut(saaq_point_hist[, curr_pts],
 saaq_point_hist[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 #--------------------------------------------------------------------------------
-# Create an indicator for highest point category before policy change.
+# Create an indicator for highest point category before 
+# the beginning of the sample.
 # Use it to determine if the bad guys change their habits.
 #--------------------------------------------------------------------------------
 
-saaq_point_hist[, pre_policy := date < as.Date(april_fools_2008)]
-table(saaq_point_hist[, pre_policy], useNA = 'ifany')
+# Preliminary version selected before policy change
+# but current version loads a pre-period sample to calculate this indicator.
+# saaq_point_hist[, pre_policy := date < as.Date(april_fools_2008)]
+
+saaq_point_hist[, pre_sample := date < as.Date(sample_beg)]
+table(saaq_point_hist[, pre_sample], useNA = 'ifany')
 # Pre-policy period is longer with an asymmetric window. 
 
 # Create a list of active drivers before the policy change.
 # With separate observations by date, balance category variables 
 # are already defined appropriately for this classification.
 past_active_list <- unique(saaq_point_hist[curr_pts_grp %in% past_active_pts_list &
-                                             pre_policy == TRUE, seq])
+                                             pre_sample == TRUE, seq])
 # past_active_list <- unique(saaq_point_hist[prev_pts_grp %in% past_active_pts_list &
 #                                              pre_policy == TRUE, seq])
 # Note that this variable is not used for prediction.
