@@ -1,4 +1,4 @@
-\documentclass[11pt]{paper}
+\documentclass[12pt]{paper}
 \usepackage{fullpage}
 \usepackage{booktabs}
 
@@ -16,62 +16,192 @@
 \begin{document}
 
 
-%\phantom{0}
-%\vspace{1.0in}
-%
-%
-%\begin{centering}
-%
-%{\huge 
-%Data Availability Guidelines and Code Base  \\
-%\bigskip
-%for \\
-%\bigskip
-%{\it ``Diversity Effects or Dissent Aversion? \\
-%Identification and Estimation in Judicial Panel Voting''} \\
-%}
-%
-%\vspace{1.25in}
-%
-%
-%{\large 
-%Charles M. Cameron \\
-%{\it Center for the Study of Democratic Politics, Princeton University} \\
-%\medskip
-%Lealand Morin \\
-%{\it College of Business, University of Central Florida} \\
-%\medskip
-%Harry J. Paarsch \\
-%{\it College of Business, University of Central Florida} \\
-%}
-%
-%\vspace{1.25in}
-%
-%
-%
-%\today
-%
-%\end{centering}
-
-%\title[Penalties for Speeding and their Effect on Moving Violations]{Penalties for Speeding and their Effect on Moving Violations: Evidence from Quebec Drivers}
-%
-%\authors{V.~Chandler, L.~Morin, J.~Penney} 
-%
-%\authorone{Vincent Chandler}{Universit\'{e} du Qu\'{e}bec en Outaouais}
-%
-%\authortwo{Lealand Morin}{University of Central Florida} 
-%
-%\authorthree{Jeffrey Penney}{University of Alberta} 
+\phantom{0}
+\vspace{1.0in}
 
 
-% \pagebreak
+\begin{centering}
+
+{\huge 
+Fixed Effects Regression Models  \\
+\bigskip
+for \\
+\bigskip
+{\it ``Penalties for Speeding and their Effect on Moving Violations: \\
+	Evidence from Quebec Drivers''} \\
+}
+
+\vspace{1.25in}
+
+
+{\large 
+Vincent Chandler \\
+{\it Universit\'{e} du Qu\'{e}bec en Outaouais} \\
+\medskip
+Lealand Morin \\
+{\it College of Business, University of Central Florida} \\
+\medskip
+Jeffrey Penney \\
+{\it University of Alberta} \\
+}
+
+\vspace{1.25in}
+
+
+
+\today
+
+\end{centering}
+
+\pagebreak
+
+\section*{Introduction}
+
+I rearranged the raw data to create a new version of the dataset to allow us to address some of Arthur's comments. 
+In particular, it allows us to estimate models with driver-specific fixed effects, even though
+it eliminates the effects of characteristics of the drivers, which we can show later in the empirical analysis. 
+I propose that these results replace the first round of (misspecified) pooled regressions and the regressions 
+by age group. 
+This set of models presents a simpler analysis (for the reader) since the demerit point balances are the only remaining variables that are not annihilated by the fixed effects.%
+\footnote{To avoid the problem with the uninteresting age variation, we redefined the age categories
+to represent the age of a driver on the date of the policy change.} 
+Since the only possible variables are the demerit point categories and the interactions with the policy change, 
+this analysis quickly establishes the result that the policy had a significant effect for males but a smaller, statistically insignificant effect for females. 
+For us, the authors, this is a fortunate outcome because it does not change the focus of our paper:
+the effect was significant for males but not females, 
+and the $F$-statistic strongly supports differences in parameter values by gender. 
+From this point on, we model separately by gender. 
+
+Another consequence of these results, however, is that we must include or test policy interactions with demerit points groups in the regressions that follow. 
+My plan is that we show sets of results that are similar to those we had in the last draft 
+but we augment the list of control variables with any additional variables that show up in a model selection procedure.
+I took Arthur's advice and split the dataset into training and testing samples, selecting by the driver serial number.  
+This made the sample slightly smaller and the fixed effects regressions were calculated using the Frich-Waugh-Lovell theorem. 
+
 
 \section*{Fixed Effects Regressions}
+
+Our dataset includes a small set of explanatory variables, all of which are categorical. 
+Also, the dataset is very large: it comprises several billion driver days. 
+As a consequence, many interesting and suitable modeling approaches would be computationally burdensome or infeasible. 
+On the other hand, the dataset is very sparse, which lends itself to methods of aggregation and
+econometric models that can be computed with frequency-weighted observations.
+Drivers rarely get tickets, so that most observations represent zero tickets, 
+resulting in many thousands of equivalent observations with many similar drivers 
+receiving no ticket on a given day. 
+Furthermore, we observe many instances in which several drivers
+who all get a tickets with the same point value on a particular day, 
+all of whom are in a single category, 
+e.g. all males, aged 20-24, with two demerit points on their driving record. 
+
+In a later section, we will analyze the data after aggregating across individuals, by grouping over the date. 
+In this format, the observations for each day will include a listing of the number of drivers with identical characteristics who get a ticket of the same point value on each day. 
+This allows for an analysis of the changes in driving behaviour with respect to 
+the characteristics of individual drivers, such as age and gender, which will turn out to be important. 
+This aggregation method also retains the effects of seasonality in the form of monthly and weekday indicators. 
+
+In contrast, our first approach aggregates over time and groups the data by individual driver number. 
+With this data, we estimate fixed effects for the individual drivers, which accounts for all the variation explained by age, sex and other unobserved heterogeneity between the drivers.
+The demerit point level is the only remaining variable that varies over time for a particular driver. 
+% 
+This categorical variable is defined as the sum of all points on tickets that a driver has received within the last two years. 
+Is is designed to reflect the demerit points that remain on a particular driver's record, 
+which is taken into account when this balance reaches thresholds to warrant suspension or revocation of the driver's license. 
+We calculate this balance including the two-year period before the sample start date of 01 April 2006, to ensure that the measurement is consistent across drivers. 
+
+As an example, a driver who gets one ticket during the sample might have 100 days with zero 
+demerit points, followed by one ticket with two points, and carry that balance of two points for 730 days, until their point balance reverts to zero for the remainder of the sample. 
+This driver will be recorded with zero demerit points and zero tickets with a frequency of 100. 
+This is followed by one observation with zero demerit points and a two-point ticket. 
+The driver then has two demerit points but no ticket observed with frequency 730. 
+Finally, the driver again has zero demerit points and zero tickets for the remainder of the sample.%
+\footnote{Strictly speaking, we also include zero-point non-events in the sample
+to separate the number of days within certain important thresholds in the data. 
+These events are included on the dates 01 April 2006, 01 April 2008 and 31 March 2010. 
+Inclusion of these dates ensures that the number of dates are aggregated separately across 
+different periods in the sample, to impose an equal number of days in the two-year periods before and after the policy change on 01 April 2008. }
+The calculation is slightly more complicated for drivers who receive several tickets over the sample, 
+except that the observations are split into more distinct categories. 
+In all cases, the demerit point balance is represented by a step function with many repeated observations. 
+We record demerit points in integers from zero to ten and collect the drivers with higher balances
+into categories of 11-20, 31-30, and 30 or more demerit points. 
+
+
+\subsection*{All Drivers (with both high and low past demerit points)}
+
+We estimated the fixed effects model with indicators for each demerit point category
+and the interactions of these demerit point indicators with the period after the policy change. 
+We performed the estimation using a training sample of seventy percent of the drivers in the sample.%
+\footnote{The remaining sample is reserved as a testing sample for further model specification searches, for the models with other variables besides the demerit point balances. }
+The estimation results are shown in Table \ref{tab:FE_regs_all_pts}. 
+% 
+Note that the indicator is missing for the category of drivers with more than thirty demerit points, 
+aside from the corresponding policy interaction because the sample contains no drivers with such high point balances before the policy change. 
+% 
+
+\input{../Tables/FE_regs_all_pts}
+
+The coefficients on the indicators for demerit point categories are largely insignificant for all samples considered in Table \ref{tab:FE_regs_all_pts}. 
+This may reflect the fact that as drivers accumulate points, they reveal their innate tendency to drive quickly and also incur the deterrent effect of the threat of penalties associated with a high demerit point balance. 
+In contrast, after the increase in penalties, there exists a deterrent effect that increases with the demerit point balance. 
+The point estimates of this effect are similar for male and female drivers, 
+but the coefficients are not significantly different from zero for the female population. 
+Regardless, the results in Table \ref{tab:FE_regs_all_pts} indicate that the deterrent effect
+for the harsher penalties is more pronounced for drivers who tend to exceed the speed limit. 
+
+
+% \input{../Tables/FE_regs_all_pts}
+
+
+
+% We also conducted an $F$-test of the restriction that the parameters are the same 
+% for male and female drivers. 
+\input{../Text/FE_regs_F_stat_all_pts}
+
+
+In Figure \ref{fig:FE_regs_all_pts}, the estimated coefficients are plotted separately for male and female drivers. 
+Point estimates of the policy effect by demerit point balance are shown for male drivers with black lines and female drivers with grey lines. 
+The upper and lower 95\% confidence bounds are shown with dashed lines of the same colour. 
+The solid lines indicate a similar point estimate for drivers of either gender but one that is estimated with more variability for female drivers. 
+For both sets of drivers, it is clear that the policy change had a stronger effect for drivers with 
+higher demerit point balances, and an especially strong effect on drivers with more than ten demerit points. 
+
 
 
 \begin{figure}
 \centering
-\includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp.pdf}
+\includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp_all_pts.pdf}
+\caption{Policy change and demerit points group interactions}
+%Coefficients on the interaction term between the change in the policy 
+%by the current demerit points category of each driver.
+%Estimates were calculated by fitting a fixed effects regression model, 
+%with intercept coefficients for each driver. 
+%% 
+%Policy effects for male drivers are shown in black and those for females are shown in grey. 
+%% 
+%The dashed lines indicate upper and lower 95\% confidence intervals. }
+% 
+\label{fig:FE_regs_all_pts}
+\end{figure}
+
+
+\clearpage
+\pagebreak
+\subsection*{High-Point Drivers}
+
+
+
+
+\input{../Tables/FE_regs_high_pts}
+
+
+\input{../Text/FE_regs_F_stat_high_pts}
+
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp_high_pts.pdf}
 \caption{Policy change and demerit points group interactions}
 %Coefficients on the interaction term between the change in the policy 
 %by the current demerit points category of each driver.
@@ -86,7 +216,8 @@
 \end{figure}
 
 
-\input{../Tables/FE_regs}
+
+
 
 
 
