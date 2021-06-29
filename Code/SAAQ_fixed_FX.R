@@ -79,6 +79,14 @@ fig_dir <- 'Figures'
 # Set directory for storing tables.
 tab_dir <- 'Tables'
 
+# Set directory for storing text output.
+text_dir <- 'Text'
+
+# Select sample in terms of driver activity. 
+# file_tag <- 'high_pts'
+# file_tag <- 'all_pts'
+file_tag_list <- c('all_pts', 'high_pts')
+
 
 ################################################################################
 # Set Parameters for variables
@@ -272,7 +280,17 @@ saaq_data[, policy := date >= april_fools_date]
 # saaq_data[, mid_age := age_grp %in% c('25-34', '35-44')]
 # saaq_data[, .N, by = c('age_grp', 'mid_age')]
 
-
+# 
+# 
+# # Select observations based on past activity.
+# if (file_tag == 'all_pts') {
+#   saaq_data[, sel_obsn := sample == 'train']
+# } else if (file_tag == 'high_pts') {
+#   saaq_data[, sel_obsn := past_active == TRUE & sample == 'train']
+# } else {
+#   stop(sprintf("file_tag '%s' not recognized.", file_tag))
+# }
+# 
 
 # saaq_data[date >= sample_beg & date <= sample_end,
 #           sum(as.numeric(num)), by = points][order(points)]
@@ -357,105 +375,35 @@ colnames(saaq_data)
 # summary(saaq_data)
 
 
+
 ################################################################################
-# Fit fixed-effects models
-# Fixed Effects Regressions: 
-# Current points group only
+################################################################################
+# 
+# Estimate for subsamples by ticket activity
+# 
+################################################################################
 ################################################################################
 
-# Set the zero-points category as the benchmark.
-var_list <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
-var_list <- var_list[2:length(var_list)]
+
+file_tag <- 'high_pts'
+# file_tag <- 'all_pts'
+# for (file_tag in file_tag_list) {
+#   
+# }
+
+################################################################################
+# Select data for sample of driver type.
+################################################################################
 
 
-fmla_str <- sprintf('dev_events ~ %s',
-                    paste(var_list, collapse = " + "))
-fmla <- as.formula(fmla_str)
-
-# Fit regression model on training sample. 
-lm_spec <- lm(formula = fmla, 
-              # data = saaq_data[sample == 'train', ],
-              # data = saaq_data, # Full sample.
-              # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-              data = saaq_data[sex == 'M' & sample == 'train'], # Training sample of male drivers.
-              # data = saaq_data[sex == 'F'], # Full sample of female drivers.
-              # data = saaq_data[sex == 'F' & sample == 'train'], # Training sample of female drivers.
-              weights = num, 
-              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
-
-# Print a summary to screen.
-summary(lm_spec)
-
-
-
-# # On sample of male drivers:
-# Call:
-#   lm(formula = fmla, data = saaq_data[sex == "M" & sample == "train"], 
-#      weights = num, model = FALSE)
-# 
-# Weighted Residuals:
-#   Min       1Q   Median       3Q      Max 
-# -0.17610 -0.00175 -0.00001  0.00312  0.40955 
-# 
-# Coefficients:
-#   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)     3.268e-05  2.059e-07   158.7   <2e-16 ***
-#   curr_pts_1      1.519e-03  2.210e-06   687.2   <2e-16 ***
-#   curr_pts_2      1.450e-03  1.018e-06  1424.7   <2e-16 ***
-#   curr_pts_3      1.400e-03  9.331e-07  1500.4   <2e-16 ***
-#   curr_pts_4      2.933e-03  2.520e-06  1163.9   <2e-16 ***
-#   curr_pts_5      2.691e-03  1.973e-06  1364.3   <2e-16 ***
-#   curr_pts_6      3.086e-03  2.324e-06  1327.6   <2e-16 ***
-#   curr_pts_7      4.120e-03  3.919e-06  1051.4   <2e-16 ***
-#   curr_pts_8      4.151e-03  3.789e-06  1095.6   <2e-16 ***
-#   curr_pts_9      3.602e-03  4.120e-06   874.2   <2e-16 ***
-#   curr_pts_10     4.616e-03  5.890e-06   783.8   <2e-16 ***
-#   curr_pts_11_20  6.169e-03  2.694e-06  2290.0   <2e-16 ***
-#   curr_pts_21_30  9.782e-03  1.039e-05   941.0   <2e-16 ***
-#   curr_pts_31_150 1.488e-02  2.007e-05   741.3   <2e-16 ***
-#   ---
-#   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-# 
-# Residual standard error: 0.008613 on 7765330 degrees of freedom
-# Multiple R-squared:  0.8242,	Adjusted R-squared:  0.8242 
-# F-statistic: 2.801e+06 on 13 and 7765330 DF,  p-value: < 2.2e-16
-# 
-# 
-# 
-# 
-# # On sample of female drivers:
-# Call:
-#   lm(formula = fmla, data = saaq_data[sex == "F" & sample == "train"], 
-#      weights = num)
-# 
-# Weighted Residuals:
-#   Min        1Q    Median        3Q       Max 
-# -0.144821 -0.001410 -0.000049  0.002947  0.152024 
-# 
-# Coefficients:
-#   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)     2.438e-05  1.768e-07   137.8   <2e-16 ***
-#   curr_pts_1      1.503e-03  2.346e-06   640.9   <2e-16 ***
-#   curr_pts_2      1.443e-03  1.071e-06  1347.9   <2e-16 ***
-#   curr_pts_3      1.406e-03  1.098e-06  1281.2   <2e-16 ***
-#   curr_pts_4      2.956e-03  3.320e-06   890.5   <2e-16 ***
-#   curr_pts_5      2.748e-03  2.779e-06   988.9   <2e-16 ***
-#   curr_pts_6      3.151e-03  3.558e-06   885.7   <2e-16 ***
-#   curr_pts_7      4.431e-03  6.612e-06   670.2   <2e-16 ***
-#   curr_pts_8      4.321e-03  6.736e-06   641.4   <2e-16 ***
-#   curr_pts_9      2.944e-03  6.540e-06   450.2   <2e-16 ***
-#   curr_pts_10     4.794e-03  1.176e-05   407.4   <2e-16 ***
-#   curr_pts_11_20  6.137e-03  6.370e-06   963.3   <2e-16 ***
-#   curr_pts_21_30  1.015e-02  3.726e-05   272.5   <2e-16 ***
-#   curr_pts_31_150 1.485e-02  9.508e-05   156.2   <2e-16 ***
-#   ---
-#   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-# 
-# Residual standard error: 0.007617 on 3472776 degrees of freedom
-# Multiple R-squared:  0.8069,	Adjusted R-squared:  0.8068 
-# F-statistic: 1.116e+06 on 13 and 3472776 DF,  p-value: < 2.2e-16
-
-
+# Select observations based on past activity.
+if (file_tag == 'all_pts') {
+  saaq_data[, sel_obsn := sample == 'train']
+} else if (file_tag == 'high_pts') {
+  saaq_data[, sel_obsn := past_active == TRUE & sample == 'train']
+} else {
+  stop(sprintf("file_tag '%s' not recognized.", file_tag))
+}
 
 
 
@@ -485,12 +433,7 @@ fmla <- as.formula(fmla_str)
 
 # Fit regression model on training sample for male drivers. 
 lm_spec <- lm(formula = fmla, 
-              # data = saaq_data[sample == 'train', ],
-              # data = saaq_data, # Full sample.
-              # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-              data = saaq_data[sex == 'M' & sample == 'train'], # Training sample of male drivers.
-              # data = saaq_data[sex == 'F'], # Full sample of female drivers.
-              # data = saaq_data[sex == 'F' & sample == 'train'], # Training sample of female drivers.
+              data = saaq_data[sex == 'M' & sel_obsn == TRUE, ], 
               weights = num, 
               model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
 
@@ -500,13 +443,13 @@ summary(lm_spec)
 # Store the item for output. 
 summ_M <- summary(lm_spec)
 
-attributes(summ_M)
+# attributes(summ_M)
 
-summ_M$coefficients
+# summ_M$coefficients
 
-# Some objects are very large.
-object.size(summ_M$weights)
-object.size(summ_M$residuals)
+# # Some objects are very large.
+# object.size(summ_M$weights)
+# object.size(summ_M$residuals)
 
 # Calculate (observation-weighted) sum of squared residuals.
 SSR_M <- sum(summ_M$weights*summ_M$residuals^2)
@@ -531,12 +474,7 @@ colnames(FE_estimates) <- c('Est_M', 'SE_M')
 
 # Fit regression model on training sample for female drivers. 
 lm_spec <- lm(formula = fmla, 
-              # data = saaq_data[sample == 'train', ],
-              # data = saaq_data, # Full sample.
-              # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-              # data = saaq_data[sex == 'M' & sample == 'train'], # Training sample of male drivers.
-              # data = saaq_data[sex == 'F'], # Full sample of female drivers.
-              data = saaq_data[sex == 'F' & sample == 'train'], # Training sample of female drivers.
+              data = saaq_data[sex == 'F' & sel_obsn == TRUE, ], 
               weights = num, 
               model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
 
@@ -574,12 +512,7 @@ colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F')
 
 # Fit regression model on training sample for female drivers. 
 lm_spec <- lm(formula = fmla, 
-              data = saaq_data[sample == 'train', ],
-              # data = saaq_data, # Full sample.
-              # data = saaq_data[sex == 'M'], # Full sample of male drivers.
-              # data = saaq_data[sex == 'M' & sample == 'train'], # Training sample of male drivers.
-              # data = saaq_data[sex == 'F'], # Full sample of female drivers.
-              # data = saaq_data[sex == 'F' & sample == 'train'], # Training sample of female drivers.
+              data = saaq_data[sel_obsn == TRUE, ], 
               weights = num, 
               model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
 
@@ -607,8 +540,6 @@ summ_A$num <- num_A
 
 
 # Initialize a matrix of coefficients. 
-# FE_estimates <- cbind(FE_estimates,
-#                       summ_A$coefficients[c(1:13, 14, 15:27), c('Estimate', 'Std. Error')])
 FE_estimates <- cbind(FE_estimates, 
                       summ_A$coefficients[, c('Estimate', 'Std. Error')])
 colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F',
@@ -651,8 +582,10 @@ F_stat <- (RSSR - USSR)/num_restr /
 
 print('F_stat = ')
 print(F_stat)
+# All drivers:
 # [1] "F_stat = "
 # [1] 2384077
+# High-point drivers:
 
 
 # Calculate the p-value.
@@ -660,8 +593,11 @@ p_value <- pf(q = F_stat, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower
 
 print('p_value = ')
 print(p_value)
+# All drivers:
 # [1] "p_value = "
 # [1] 0
+# High-point drivers:
+
 
 # In that case, calculate a critical value at the 1% level.
 c_value <- qf(p = 0.05, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower.tail = FALSE)
@@ -672,6 +608,28 @@ print(c_value)
 # [1] 1.485677
 
 # Equality of parameters decisively rejected. 
+
+# Collect into a statement to add to the tex file.
+f_test_desc <- c('We calculated the $F$-statistic to test the restriction', 
+                 'that the parameters are the same for both male and female drivers.', 
+                 sprintf('The unrestricted sum of squared residuals was %s.', 
+                         comma_format()(USSR)), 
+                 sprintf('The restricted sum of squared residuals was %s.', 
+                         comma_format()(RSSR)), 
+                 sprintf('The value of the $F$-statistic was %s,', 
+                         comma_format()(F_stat)), 
+                 'which corresponds to a $p$-value of nearly zero, since the $F$-statistic is much higher than', 
+                 sprintf(' the one percent critical value of %6.4f.', 
+                         c_value), 
+                 'This strongly suggests that male and female driving behaviour should be modeled separately.')
+
+# Output this description to a file.
+text_file_path <- sprintf('%s/FE_regs_F_stat_%s.tex', text_dir, file_tag)
+cat('\n\n%% Results of F-test for equality of parameters by gender \n\n\n', 
+    file = text_file_path, append = FALSE)
+for (desc_row in 1:length(f_test_desc)) {
+  cat(sprintf('%s \n', f_test_desc[desc_row]), file = text_file_path, append = TRUE)
+}
 
 
 # Collect other parameters to count observations. 
@@ -697,10 +655,6 @@ FFX_stats <- data.frame(num_drivers = c(summ_A$num_seq, summ_M$num_seq, summ_F$n
 
 # Calculate confidence bounds on estimates. 
 FE_estimates <- cbind(FE_estimates, FE_estimates*0)
-# FE_estimates[, 'CI_U_M'] <- NA
-# FE_estimates[, 'CI_L_M'] <- NA
-# FE_estimates[, 'CI_U_F'] <- NA
-# FE_estimates[, 'CI_L_F'] <- NA
 colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F', 'Est_A', 'SE_A', 
                             'CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F', 'CI_L_A', 'CI_U_A')
 
@@ -753,6 +707,13 @@ lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = '
 # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_A'], col = 'red', lwd = 3, lty = 'dashed')
 # Similar to the numbers for males.
 
+# Adjust figure parameters for sample.
+if (file_tag == 'all_pts') {
+  ylim_fig <- c(-0.002, 0.002)
+} else if (file_tag == 'high_pts') {
+  ylim_fig <- c(-0.005, 0.002)
+}
+
 
 
 # Plot levels of tickets after policy change.
@@ -770,16 +731,16 @@ FE_estimates[var_nums, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 
 # fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.eps', fig_dir)
 # postscript(fig_filename)
-fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.pdf', fig_dir)
+fig_filename <- sprintf('%s/FFX_reg_policy_points_grp_%s.pdf', fig_dir, file_tag)
 pdf(fig_filename)
 plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'], 
      xlab = 'Demerit Point Category', 
      ylab = 'Policy Effect', 
      type = 'l', col = 'black', lwd = 3, 
-     ylim = c(-0.002, 0.002), xaxt = 'n', 
+     ylim = ylim_fig, xaxt = 'n', 
      cex.lab = 1.5,    # X-axis and Y-axis labels size
-     cex.axis = 1.0)
-axis(1, at = 1:n_vars, labels = curr_pts_labels, cex = 1.5)
+     cex.axis = 1.5)
+axis(1, at = 1:n_vars, labels = curr_pts_labels, cex = 0.5)
 lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
 lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
 lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
@@ -810,23 +771,21 @@ FE_est_out <- FE_estimates[, c('Est_A', 'SE_A',
                                'Est_F', 'SE_F')]
 
 
-# # Convert the table to a LaTex table.
-# out_xtable <- xtable(corr_matrix[, ],
-#                      digits = 3, label = 'tab:corr',
-#                      caption = 'Correlation Matrix')
-
 # Output to TeX file.
-tab_file_path <- sprintf('%s/FE_regs.tex', tab_dir)
-# cat(print(out_xtable), file = tab_file_name, append = FALSE)
-
+tab_file_path <- sprintf('%s/FE_regs_%s.tex', tab_dir, file_tag)
 
 
 # Ouput TeX code for tables.
-header <- "Estimates from Fixed Effects Regression Models"
-caption <- 'Estimates from Fixed Effects Regression Models'
-description <- c('Fixed effects regression coefficients after estimating driver-specific intercepts..', 
-                 'Samples are drawn by selecting 40 per cent of the drivers in each sample.')
-label <- 'FE_regs'
+if (file_tag == 'all_pts') {
+  header <- "Estimates from Fixed Effects Regression Models (all demerit-point levels)"
+  caption <- 'Estimates from fixed effects regression models (all demerit-point levels)'
+} else if (file_tag == 'high_pts') {
+  header <- "Estimates from Fixed Effects Regression Models (drivers with high demerit-point balances)"
+  caption <- 'Estimates from fixed effects regression models (drivers with high demerit-point balances)'
+}
+description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.', 
+                 'Samples are drawn by randomly selecting seventy per cent of the drivers.')
+label <- sprintf('tab:FE_regs_%s', file_tag)
 
 
 # Output header.
@@ -923,104 +882,7 @@ cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
 
 
 
-
-#-------------------------------------------------------------------------------
-# Printed output:
-#-------------------------------------------------------------------------------
-
-# On sample of male drivers:
-
-# Call:
-#   lm(formula = fmla, data = saaq_data[sex == "M" & sample == "train"], 
-#      weights = num, model = FALSE)
-# 
-# Weighted Residuals:
-#   Min       1Q   Median       3Q      Max 
-# -0.19729 -0.00252  0.00009  0.00257  0.39258 
-# 
-# Coefficients:
-#   Estimate Std. Error t value Pr(>|t|)    
-# (Intercept)             5.970e-03  2.091e-05   285.5   <2e-16 ***
-#   curr_pts_1              6.115e-04  3.394e-06   180.2   <2e-16 ***
-#   curr_pts_2              5.942e-04  1.739e-06   341.7   <2e-16 ***
-#   curr_pts_3              5.101e-04  1.544e-06   330.4   <2e-16 ***
-#   curr_pts_4              1.425e-03  3.907e-06   364.6   <2e-16 ***
-#   curr_pts_5              1.227e-03  2.986e-06   410.8   <2e-16 ***
-#   curr_pts_6              1.576e-03  3.425e-06   460.1   <2e-16 ***
-#   curr_pts_7              1.894e-03  5.824e-06   325.2   <2e-16 ***
-#   curr_pts_8              1.992e-03  5.568e-06   357.8   <2e-16 ***
-#   curr_pts_9              1.596e-03  5.902e-06   270.3   <2e-16 ***
-#   curr_pts_10             3.077e-03  9.425e-06   326.4   <2e-16 ***
-#   curr_pts_11_20          3.578e-03  4.495e-06   796.1   <2e-16 ***
-#   curr_pts_21_30          6.418e-03  1.845e-05   347.8   <2e-16 ***
-#   curr_pts_31_150         1.031e-02  4.057e-05   254.2   <2e-16 ***
-#   avg_policy             -1.168e-02  4.107e-05  -284.4   <2e-16 ***
-#   curr_pts_1_policy       1.372e-03  5.100e-06   269.0   <2e-16 ***
-#   curr_pts_2_policy       1.211e-03  2.455e-06   493.4   <2e-16 ***
-#   curr_pts_3_policy       1.335e-03  2.239e-06   596.3   <2e-16 ***
-#   curr_pts_4_policy       2.467e-03  5.599e-06   440.6   <2e-16 ***
-#   curr_pts_5_policy       2.522e-03  4.451e-06   566.5   <2e-16 ***
-#   curr_pts_6_policy       2.627e-03  5.107e-06   514.3   <2e-16 ***
-#   curr_pts_7_policy       3.972e-03  8.515e-06   466.4   <2e-16 ***
-#   curr_pts_8_policy       3.935e-03  8.164e-06   482.0   <2e-16 ***
-#   curr_pts_9_policy       3.702e-03  8.774e-06   421.9   <2e-16 ***
-#   curr_pts_10_policy      2.466e-03  1.254e-05   196.7   <2e-16 ***
-#   curr_pts_11_20_policy   4.542e-03  6.571e-06   691.1   <2e-16 ***
-#   curr_pts_21_30_policy   5.562e-03  2.426e-05   229.2   <2e-16 ***
-#   curr_pts_31_150_policy  7.160e-03  5.077e-05   141.0   <2e-16 ***
-#   ---
-#   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-# 
-# Residual standard error: 0.007575 on 7765316 degrees of freedom
-# Multiple R-squared:  0.8641,	Adjusted R-squared:  0.8641 
-# F-statistic: 1.828e+06 on 27 and 7765316 DF,  p-value: < 2.2e-16
-
-
-# On sample of female drivers:
-
-# Call:
-#   lm(formula = fmla, data = saaq_data[sex == "F" & sample == "train"], 
-#      weights = num, model = FALSE)
-# 
-# Weighted Residuals:
-#   Min        1Q    Median        3Q       Max 
-# -0.149663 -0.002485  0.000071  0.002321  0.134567 
-# 
-# Coefficients:
-#   Estimate Std. Error  t value Pr(>|t|)    
-# (Intercept)             8.743e-03  2.191e-05  398.989  < 2e-16 ***
-#   curr_pts_1              4.512e-04  3.567e-06  126.484  < 2e-16 ***
-#   curr_pts_2              4.521e-04  1.837e-06  246.113  < 2e-16 ***
-#   curr_pts_3              3.987e-04  1.783e-06  223.693  < 2e-16 ***
-#   curr_pts_4              1.375e-03  5.037e-06  272.894  < 2e-16 ***
-#   curr_pts_5              1.219e-03  4.052e-06  300.729  < 2e-16 ***
-#   curr_pts_6              1.571e-03  5.108e-06  307.633  < 2e-16 ***
-#   curr_pts_7              2.048e-03  9.892e-06  207.047  < 2e-16 ***
-#   curr_pts_8              2.073e-03  9.694e-06  213.814  < 2e-16 ***
-#   curr_pts_9              9.681e-04  9.236e-06  104.814  < 2e-16 ***
-#   curr_pts_10             3.413e-03  1.959e-05  174.173  < 2e-16 ***
-#   curr_pts_11_20          3.332e-03  1.037e-05  321.142  < 2e-16 ***
-#   curr_pts_21_30          6.033e-03  6.757e-05   89.282  < 2e-16 ***
-#   curr_pts_31_150         1.546e-02  1.822e-04   84.889  < 2e-16 ***
-#   avg_policy             -1.711e-02  4.298e-05 -398.095  < 2e-16 ***
-#   curr_pts_1_policy       1.319e-03  5.267e-06  250.373  < 2e-16 ***
-#   curr_pts_2_policy       1.173e-03  2.519e-06  465.804  < 2e-16 ***
-#   curr_pts_3_policy       1.294e-03  2.543e-06  508.944  < 2e-16 ***
-#   curr_pts_4_policy       2.429e-03  7.117e-06  341.235  < 2e-16 ***
-#   curr_pts_5_policy       2.461e-03  5.988e-06  410.972  < 2e-16 ***
-#   curr_pts_6_policy       2.565e-03  7.480e-06  342.942  < 2e-16 ***
-#   curr_pts_7_policy       3.924e-03  1.391e-05  282.188  < 2e-16 ***
-#   curr_pts_8_policy       3.863e-03  1.386e-05  278.627  < 2e-16 ***
-#   curr_pts_9_policy       3.262e-03  1.361e-05  239.617  < 2e-16 ***
-#   curr_pts_10_policy      1.884e-03  2.469e-05   76.309  < 2e-16 ***
-#   curr_pts_11_20_policy   4.579e-03  1.446e-05  316.732  < 2e-16 ***
-#   curr_pts_21_30_policy   6.022e-03  8.442e-05   71.336  < 2e-16 ***
-#   curr_pts_31_150_policy -5.992e-04  2.266e-04   -2.645  0.00817 ** 
-#   ---
-#   Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-# 
-# Residual standard error: 0.006453 on 3472762 degrees of freedom
-# Multiple R-squared:  0.8614,	Adjusted R-squared:  0.8614 
-# F-statistic: 7.993e+05 on 27 and 3472762 DF,  p-value: < 2.2e-16
-
+################################################################################
+# End
+################################################################################
 
