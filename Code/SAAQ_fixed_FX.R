@@ -168,56 +168,60 @@ summary(saaq_train)
 saaq_train[, sum(as.numeric(num)), by = points][order(points)]
 
 
-#-------------------------------------------------------------------------------
-# Load Testing Dataset
-#-------------------------------------------------------------------------------
-
-# Dataset for out-of-sample model testing. 
-in_path_file_name <- sprintf('%s/%s', data_in_path, test_file_name)
-saaq_test <- fread(in_path_file_name)
-
-summary(saaq_test)
-
-# summary(saaq_test[, .N, by = date])
-# head(saaq_test, 394)
+# #-------------------------------------------------------------------------------
+# # Load Testing Dataset
+# #-------------------------------------------------------------------------------
 # 
-# table(saaq_test[, sex], useNA = 'ifany')
+# # Dataset for out-of-sample model testing. 
+# in_path_file_name <- sprintf('%s/%s', data_in_path, test_file_name)
+# saaq_test <- fread(in_path_file_name)
 # 
-# table(saaq_test[, age_grp], useNA = 'ifany')
+# summary(saaq_test)
 # 
-# table(saaq_test[, past_active], useNA = 'ifany')
+# # summary(saaq_test[, .N, by = date])
+# # head(saaq_test, 394)
+# # 
+# # table(saaq_test[, sex], useNA = 'ifany')
+# # 
+# # table(saaq_test[, age_grp], useNA = 'ifany')
+# # 
+# # table(saaq_test[, past_active], useNA = 'ifany')
+# # 
+# # table(saaq_test[, past_active], saaq_test[, sex], useNA = 'ifany')
+# # 
+# # table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
 # 
-# table(saaq_test[, past_active], saaq_test[, sex], useNA = 'ifany')
 # 
-# table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
-
-
-
-# length(unique(saaq_test[, date]))
-# # [1] 1461 days of driving.
 # 
-# 2*length(age_group_list)*2*length(curr_pts_grp_list)
-# # [1] 392 combinations of categories per day.
+# # length(unique(saaq_test[, date]))
+# # # [1] 1461 days of driving.
+# # 
+# # 2*length(age_group_list)*2*length(curr_pts_grp_list)
+# # # [1] 392 combinations of categories per day.
+# # 
+# # # Observations added with observed tickets.
+# # nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 # 
-# # Observations added with observed tickets.
-# nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
-
-
-# Tabulate the points, which are the events to be predicted.
-# saaq_test[date >= sample_beg & date <= sample_end,
-#           sum(as.numeric(num)), by = points][order(points)]
-saaq_test[, sum(as.numeric(num)), by = points][order(points)]
-
+# 
+# # Tabulate the points, which are the events to be predicted.
+# # saaq_test[date >= sample_beg & date <= sample_end,
+# #           sum(as.numeric(num)), by = points][order(points)]
+# saaq_test[, sum(as.numeric(num)), by = points][order(points)]
+# 
 
 ################################################################################
 # Stack the datasets and label by sample
 ################################################################################
 
 saaq_train[, sample := 'train']
-saaq_test[, sample := 'test']
-saaq_data <- rbind(saaq_train, saaq_test)
+# saaq_test[, sample := 'test']
+# saaq_data <- rbind(saaq_train, saaq_test)
+# rm(saaq_train, saaq_test)
 
-rm(saaq_train, saaq_test)
+# Testing sample not needed. 
+saaq_data <- saaq_train
+
+rm(saaq_train)
 
 
 # saaq_data[date >= sample_beg & date <= sample_end,
@@ -482,66 +486,126 @@ for (file_tag in file_tag_list) {
     SSR_sub <- sum(summ_sub$weights*summ_sub$residuals^2)
     num_sub <- sum(summ_sub$weights)
     
-    # Store residuals. 
-    if (sex_sel == 'A') {
-      saaq_data[sub_sel_obsn == TRUE, resid_A := summ_sub$residuals]
-      saaq_data[sub_sel_obsn == TRUE, wts_A := summ_sub$weights]
-    } else if (sex_sel == 'M') {
-      saaq_data[sub_sel_obsn == TRUE, resid_M := summ_sub$residuals]
-      saaq_data[sub_sel_obsn == TRUE, wts_M := summ_sub$weights]
-    } else if (sex_sel == 'F') {
-      saaq_data[sub_sel_obsn == TRUE, resid_F := summ_sub$residuals]
-      saaq_data[sub_sel_obsn == TRUE, wts_F := summ_sub$weights]
-    } 
+    # Calculate columns for cluster-robust variance estimate, 
+    # clustering on the driver.
+    CRVE_dt <- data.table(matrix(NA, 
+                                 nrow = length(summ_sub$weights),
+                                 ncol = 2*length(curr_pts_grp_list)))
+    var_col_names <- c(sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list)), 
+                       sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list)))
+    colnames(CRVE_dt) <- var_col_names
+    for (curr_pts_level in curr_pts_grp_list) {
+      
+      print(sprintf('Calculating CRVE column for curr_pts_grp %s', curr_pts_level))
+      
+      col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
+      CRVE_dt[, col_var_name] <- summ_sub$weights * 
+        summ_sub$residuals * saaq_data[sub_sel_obsn == TRUE, col_var_name, with = FALSE]
+      
+      col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
+      CRVE_dt[, col_var_name] <- summ_sub$weights * 
+        summ_sub$residuals * saaq_data[sub_sel_obsn == TRUE, col_var_name, with = FALSE]
+      
+    }
+    # summary(CRVE_dt)
+    CRVE_dt[, 'seq'] <- saaq_data[sub_sel_obsn == TRUE, seq]
+    # Then sum over each individual. 
+    # Drop the omitted variable, which is zero for all pre-policy days.
+    var_col_names <- var_col_names[var_col_names != 'curr_pts_31_150']
+    CRVE_by_seq <- CRVE_dt[, lapply(.SD, sum), by = seq, .SDcols = var_col_names]
+    
+    # Now calculate a covariance matrix from this. 
+    CRVE_meat <- matrix(NA, nrow = length(var_col_names), ncol = length(var_col_names))
+    colnames(CRVE_meat) <- var_col_names
+    rownames(CRVE_meat) <- var_col_names
+    for (var_num_i in 1:length(var_col_names)) {
+      for (var_num_j in 1:var_num_i) {
+        
+        var_col_i <- var_col_names[var_num_i]
+        var_col_j <- var_col_names[var_num_j]
+        
+        CRVE_meat[var_col_i, var_col_j] <- sum(CRVE_by_seq[, var_col_i, with = FALSE] * 
+                                                 CRVE_by_seq[, var_col_j, with = FALSE])
+        
+        CRVE_meat[var_col_j, var_col_i] <- CRVE_meat[var_col_i, var_col_j]
+      }
+    }
+    
+    # Now get the bread of the sandwich from the regression model. 
+    # Make an adjustment to back out the standard error. 
+    CRVE_bread <- vcov(lm_spec, complete = FALSE)/summ_sub$sigma^2
+    # This should be X-transpose-X-inverse.
+    
+    # Now make a sandwich. 
+    CRVE <- CRVE_bread %*% CRVE_meat %*% CRVE_bread
+    
+    # Take the standard errors, multiplied by a degrees of freedom correction. 
+    num_seq <- nrow(CRVE_by_seq)
+    CRVE <- CRVE*(num_seq/(num_seq-1))*(num_sub - 1)/(num_sub - length(var_col_names))
+    
+    # Take the standard errors, as usual. 
     
     
-    # Checking the SSR calculation. 
-    summary(saaq_data[, resid_A])
-    saaq_data[sel_obsn == TRUE, .N]
-    saaq_data[sel_obsn == FALSE, .N]
-    summary(saaq_data[sel_obsn == TRUE, resid_A])
-    summary(saaq_data[sel_obsn == TRUE, resid_M])
-    summary(saaq_data[sel_obsn == TRUE, resid_F])
-    summary(saaq_data[sel_obsn == TRUE, wts_A])
-    summary(saaq_data[sel_obsn == TRUE, wts_M])
-    summary(saaq_data[sel_obsn == TRUE, wts_F])
-    
-    summary(saaq_data[, num])
-    summary(saaq_data[sel_obsn == TRUE, resid_A - resid_M]*1000)
-    summary(saaq_data[sel_obsn == TRUE, resid_A - resid_F]*1000)
-    summary(saaq_data[sel_obsn == TRUE, resid_M - resid_F])
-    summary(saaq_data[sel_obsn == TRUE, resid_A^2 - resid_M^2]*1000)
-    summary(saaq_data[sel_obsn == TRUE, resid_A^2 - resid_F^2]*1000)
-    saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_M^2), na.rm = TRUE)]
-    saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_F^2), na.rm = TRUE)]
-    # This is the problem: model F fits worse than model A.
-    # plot(saaq_data[sel_obsn == TRUE, resid_F])
-    
-    # The weights are the same (both the number of drivers).
-    summary(saaq_data[sel_obsn == TRUE, wts_A == wts_M])
-    summary(saaq_data[sel_obsn == TRUE, wts_A == wts_F])
-    summary(saaq_data[sel_obsn == TRUE, wts_A == num])
-    summary(saaq_data[sel_obsn == TRUE, wts_M == num])
-    summary(saaq_data[sel_obsn == TRUE, wts_F == num])
-    
-    # Test after running model F:
-    saaq_data[sub_sel_obsn == TRUE, sum(wts_F, na.rm = TRUE)]
-    num_sub
-    
-    SSR_sub
-    saaq_data[sub_sel_obsn == TRUE, sum(num*resid_F^2, na.rm = TRUE)]
+    # # Store residuals. 
+    # if (sex_sel == 'A') {
+    #   saaq_data[sub_sel_obsn == TRUE, resid_A := summ_sub$residuals]
+    #   saaq_data[sub_sel_obsn == TRUE, wts_A := summ_sub$weights]
+    # } else if (sex_sel == 'M') {
+    #   saaq_data[sub_sel_obsn == TRUE, resid_M := summ_sub$residuals]
+    #   saaq_data[sub_sel_obsn == TRUE, wts_M := summ_sub$weights]
+    # } else if (sex_sel == 'F') {
+    #   saaq_data[sub_sel_obsn == TRUE, resid_F := summ_sub$residuals]
+    #   saaq_data[sub_sel_obsn == TRUE, wts_F := summ_sub$weights]
+    # } 
     
     
-    summary(saaq_data[sub_sel_obsn == TRUE, num])
-    summary(saaq_data[sub_sel_obsn == TRUE, resid_F^2])
-    summary(summ_sub$residuals^2)
-    
-    
-    saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_F^2), na.rm = TRUE)]
-    saaq_data[sel_obsn == TRUE, sum((resid_A^2 - resid_F^2), na.rm = TRUE)]
-    
-    
-    # saaq_data[sub_sel_obsn == TRUE, sex]
+    # # Checking the SSR calculation. 
+    # summary(saaq_data[, resid_A])
+    # saaq_data[sel_obsn == TRUE, .N]
+    # saaq_data[sel_obsn == FALSE, .N]
+    # summary(saaq_data[sel_obsn == TRUE, resid_A])
+    # summary(saaq_data[sel_obsn == TRUE, resid_M])
+    # summary(saaq_data[sel_obsn == TRUE, resid_F])
+    # summary(saaq_data[sel_obsn == TRUE, wts_A])
+    # summary(saaq_data[sel_obsn == TRUE, wts_M])
+    # summary(saaq_data[sel_obsn == TRUE, wts_F])
+    # 
+    # summary(saaq_data[, num])
+    # summary(saaq_data[sel_obsn == TRUE, resid_A - resid_M]*1000)
+    # summary(saaq_data[sel_obsn == TRUE, resid_A - resid_F]*1000)
+    # summary(saaq_data[sel_obsn == TRUE, resid_M - resid_F])
+    # summary(saaq_data[sel_obsn == TRUE, resid_A^2 - resid_M^2]*1000)
+    # summary(saaq_data[sel_obsn == TRUE, resid_A^2 - resid_F^2]*1000)
+    # saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_M^2), na.rm = TRUE)]
+    # saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_F^2), na.rm = TRUE)]
+    # # This is the problem: model F fits worse than model A.
+    # # plot(saaq_data[sel_obsn == TRUE, resid_F])
+    # 
+    # # The weights are the same (both the number of drivers).
+    # summary(saaq_data[sel_obsn == TRUE, wts_A == wts_M])
+    # summary(saaq_data[sel_obsn == TRUE, wts_A == wts_F])
+    # summary(saaq_data[sel_obsn == TRUE, wts_A == num])
+    # summary(saaq_data[sel_obsn == TRUE, wts_M == num])
+    # summary(saaq_data[sel_obsn == TRUE, wts_F == num])
+    # 
+    # # Test after running model F:
+    # saaq_data[sub_sel_obsn == TRUE, sum(wts_F, na.rm = TRUE)]
+    # num_sub
+    # 
+    # SSR_sub
+    # saaq_data[sub_sel_obsn == TRUE, sum(num*resid_F^2, na.rm = TRUE)]
+    # 
+    # 
+    # summary(saaq_data[sub_sel_obsn == TRUE, num])
+    # summary(saaq_data[sub_sel_obsn == TRUE, resid_F^2])
+    # summary(summ_sub$residuals^2)
+    # 
+    # 
+    # saaq_data[sel_obsn == TRUE, sum(num*(resid_A^2 - resid_F^2), na.rm = TRUE)]
+    # saaq_data[sel_obsn == TRUE, sum((resid_A^2 - resid_F^2), na.rm = TRUE)]
+    # 
+    # 
+    # # saaq_data[sub_sel_obsn == TRUE, sex]
     
     
     
@@ -561,7 +625,7 @@ for (file_tag in file_tag_list) {
     
     # Append estimates to the matrix of coefficients. 
     FE_estimates <- cbind(FE_estimates, 
-                          summ_A$coefficients[, c('Estimate', 'Std. Error')])
+                          summ_sub$coefficients[, c('Estimate', 'Std. Error')])
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('Est_%s', sex_sel), 
                                           sprintf('SE_%s', sex_sel))
