@@ -420,6 +420,7 @@ for (file_tag in file_tag_list) {
   FE_estimates <- NULL
   # 
   # sex_sel_list <- c('A', 'M', 'F')
+  # sex_sel <- 'A'
   # sex_sel <- 'M'
   # sex_sel <- 'F'
   for (sex_sel in sex_sel_list) {
@@ -444,7 +445,16 @@ for (file_tag in file_tag_list) {
       stop(sprintf('Sample selection sex_sel = %s not recognized.', sex_sel))
     }
     
-    
+    # # Save the selected dataset for validation.
+    # out_file_name <- sprintf('%s/saaq_check_FE_%s_%s.csv', 
+    #                          data_out_path, sex_sel, file_tag)
+    # saaq_data[, policy_int := as.integer(policy)]
+    # saaq_data[, events_int := as.integer(events)]
+    # check_var_names <- c('date', 'seq', 'sex', 'age_grp', 'curr_pts_grp', 
+    #                      'points', 'num', 'policy_int', 'events_int')
+    # summary(saaq_data[sub_sel_obsn == TRUE, check_var_names, with = FALSE])
+    # write.csv(saaq_data[sub_sel_obsn == TRUE, check_var_names, with = FALSE], 
+    #           file = out_file_name, row.names = FALSE)
     
     
     # Set the list of variables by points category.
@@ -544,6 +554,10 @@ for (file_tag in file_tag_list) {
     CRVE <- CRVE*(num_seq/(num_seq-1))*(num_sub - 1)/(num_sub - length(var_col_names))
     
     # Take the standard errors, as usual. 
+    CRVE_SE <- sqrt(diag(CRVE))
+    
+    # Compare with the standard standard errors.
+    # CRVE_SE/summ_sub$coefficients[, c('Std. Error')]
     
     
     # # Store residuals. 
@@ -631,6 +645,11 @@ for (file_tag in file_tag_list) {
                                           sprintf('SE_%s', sex_sel))
     
     
+    # Create a second version with CRVE.
+    FE_estimates <- cbind(FE_estimates, CRVE_SE)
+    colnames(FE_estimates)[ncol(FE_estimates)] <- c(sprintf('SE_CRVE_%s', sex_sel))
+    
+    
     # Calculate confidence bounds on estimates. 
     # FE_estimates <- cbind(FE_estimates, FE_estimates*0)
     # colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F', 'Est_A', 'SE_A', 
@@ -650,6 +669,18 @@ for (file_tag in file_tag_list) {
     colnames(FE_estimates)[new_cols] <- c(sprintf('CI_U_%s', sex_sel), 
                                           sprintf('CI_L_%s', sex_sel))
     
+    
+    # Calculate another pair of confidence bounds with CRVE.
+    FE_estimates <- cbind(FE_estimates, 
+                          FE_estimates[, sprintf('Est_%s', sex_sel)] + 
+                            qnorm(0.975)*FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)])
+    FE_estimates <- cbind(FE_estimates, 
+                          FE_estimates[, sprintf('Est_%s', sex_sel)] - 
+                            qnorm(0.975)*FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)])
+    
+    new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
+    colnames(FE_estimates)[new_cols] <- c(sprintf('CI_CRVE_U_%s', sex_sel), 
+                                          sprintf('CI_CRVE_L_%s', sex_sel))
     
     
     # if (sex_sel == 'A') {
@@ -855,6 +886,13 @@ for (file_tag in file_tag_list) {
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_A'], col = 'red', lwd = 3, lty = 'dashed')
   # Similar to the numbers for males.
   
+  # Compare CI with CRVE.
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
+  
+  
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'), 
          col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
   dev.off()
@@ -907,6 +945,13 @@ for (file_tag in file_tag_list) {
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_A'], col = 'red', lwd = 3, lty = 'dashed')
   # Similar to the numbers for males.
   
+  
+  # Compare CI with CRVE.
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
+  
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'), 
          col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
   dev.off()
@@ -927,15 +972,15 @@ for (file_tag in file_tag_list) {
   tab_file_path <- sprintf('%s/FE_regs_%s.tex', tab_dir, file_tag)
   
   
-  # Ouput TeX code for tables.
+  # Output TeX code for tables.
   if (file_tag == 'all_pts') {
-    header <- "Estimates from Fixed Effects Regression Models (all demerit-point levels)"
-    caption <- 'Estimates from fixed effects regression models (all demerit-point levels)'
+    header <- "Fixed Effects Regression Models (all demerit-point levels)"
+    caption <- 'Fixed effects regression models (all demerit-point levels)'
   } else if (file_tag == 'high_pts') {
-    header <- "Estimates from Fixed Effects Regression Models (drivers with high demerit-point balances)"
-    caption <- 'Estimates from fixed effects regression models (drivers with high demerit-point balances)'
+    header <- "Fixed Effects Regression Models (drivers with high demerit-point balances)"
+    caption <- 'Fixed effects regression models (drivers with high demerit-point balances)'
   }
-  description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.', 
+  description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.',
                    'Samples are drawn by randomly selecting seventy per cent of the drivers.')
   label <- sprintf('tab:FE_regs_%s', file_tag)
   
@@ -1032,6 +1077,130 @@ for (file_tag in file_tag_list) {
   cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
   cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
   
+  
+  #-------------------------------------------------------------------------------
+  # Generate second set of LaTeX tables of estimates
+  # This one uses CRVE for cluster-robust standard errors
+  #-------------------------------------------------------------------------------
+
+  
+  # Create a table for display. 
+  colnames(FE_estimates)
+  FE_est_out <- FE_estimates[, c('Est_A', 'SE_CRVE_A', 
+                                 'Est_M', 'SE_CRVE_M', 
+                                 'Est_F', 'SE_CRVE_F')]
+  
+  # Output to TeX file.
+  tab_file_path <- sprintf('%s/FE_regs_CRVE_%s.tex', tab_dir, file_tag)
+
+  # Output TeX code for tables.
+  if (file_tag == 'all_pts') {
+    header <- "Fixed Effects Regression Models, with CRVE (all demerit-point levels)"
+    caption <- 'Fixed effects regression models, with CRVE (all demerit-point levels)'
+  } else if (file_tag == 'high_pts') {
+    header <- "Fixed Effects Regression Models, with CRVE (drivers with high demerit-point balances)"
+    caption <- 'Fixed effects regression models, with CRVE (drivers with high demerit-point balances)'
+  }
+  description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.', 
+                   'Samples are drawn by randomly selecting seventy per cent of the drivers.', 
+                   'Standard errors were calculated using the cluster-robust covariance matrix estimator,', 
+                   'clustering on the individual driver.')
+  label <- sprintf('tab:FE_regs_CRVE_%s', file_tag)
+  
+
+
+  # Output header.
+  cat(sprintf('%% %s \n\n', header),
+      file = tab_file_path, append = FALSE)
+  cat('\\begin{table}% [ht] \n', file = tab_file_path, append = TRUE)
+  cat('\\centering \n', file = tab_file_path, append = TRUE)
+  cat('\\begin{tabular}{l r r r r r r} \n', file = tab_file_path, append = TRUE)
+  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+  # Output column headers.
+  cat('\nSample \n', file = tab_file_path, append = TRUE)
+  for (sample_name in c('All', 'Male', 'Female')) {
+    cat(sprintf(" & \\multicolumn{2}{c}{%s  Drivers} ", sample_name),
+        file = tab_file_path, append = TRUE)
+  }
+  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+  cat('\n \\cmidrule(lr){1-1}\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7} \n',
+      file = tab_file_path, append = TRUE)
+
+  cat('\nEstimate ', file = tab_file_path, append = TRUE)
+  for (i in 1:3) {
+    cat(' & Coefficient & Std. Error ', file = tab_file_path, append = TRUE)
+  }
+  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+
+  # Output table of estimates.
+  cat('\\multicolumn{4}{l}{\\textbf{Demerit points group indicators:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  for (row in 1:nrow(FE_est_out)) {
+
+
+    var_name <- rownames(FE_est_out)[row]
+    var_name <- gsub('curr_pts_', '', var_name)
+    var_name <- gsub('_policy', '', var_name)
+    var_name <- gsub('_', '-', var_name)
+    var_name <- sprintf('%s points', var_name)
+
+    cat(sprintf('%s ', var_name), file = tab_file_path, append = TRUE)
+    for (col in 1:ncol(FE_est_out)) {
+
+      cat(sprintf(' & %6.3f ', FE_est_out[row, col]*1000),
+          file = tab_file_path, append = TRUE)
+    }
+    cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+    if (row == 13) {
+      cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+      cat('\\multicolumn{4}{l}{\\textbf{Policy and points group interactions:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
+    }
+
+  }
+  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+  # Output summary statistics.
+  # FFX_stats
+
+  cat('\nDrivers \n', file = tab_file_path, append = TRUE)
+  for (i in 1:3) {
+    num_drivers <- comma_format()(FFX_stats[i, 'num_drivers'])
+    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_drivers),
+        file = tab_file_path, append = TRUE)
+  }
+  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+  cat('\nDriver days \n', file = tab_file_path, append = TRUE)
+  for (i in 1:3) {
+    num_obs <- comma_format()(FFX_stats[i, 'num_obs'])
+    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_obs),
+        file = tab_file_path, append = TRUE)
+  }
+  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+  cat('\nSSR \n', file = tab_file_path, append = TRUE)
+  for (i in 1:3) {
+    SSR <- comma_format()(FFX_stats[i, 'SSR'])
+    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', SSR),
+        file = tab_file_path, append = TRUE)
+  }
+  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+
+  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+
+
+  # Output closing arguments.
+  cat('\\end{tabular} \n', file = tab_file_path, append = TRUE)
+  cat(sprintf('\\caption{%s} \n', caption), file = tab_file_path, append = TRUE)
+  for (desc_row in 1:length(description)) {
+    cat(sprintf('%s \n', description[desc_row]), file = tab_file_path, append = TRUE)
+  }
+  cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
+  cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
+
   
 }
 

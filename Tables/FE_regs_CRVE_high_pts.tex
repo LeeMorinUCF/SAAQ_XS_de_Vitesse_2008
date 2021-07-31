@@ -1,0 +1,108 @@
+% Fixed Effects Regression Models, with CRVE (drivers with high demerit-point balances) 
+
+\begin{table}% [ht] 
+\centering 
+\begin{tabular}{l r r r r r r} 
+
+\hline 
+ 
+
+Sample 
+ & \multicolumn{2}{c}{All  Drivers}  & \multicolumn{2}{c}{Male  Drivers}  & \multicolumn{2}{c}{Female  Drivers}   \\ 
+ 
+
+ \cmidrule(lr){1-1}\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7} 
+
+Estimate  & Coefficient & Std. Error  & Coefficient & Std. Error  & Coefficient & Std. Error   \\ 
+ 
+
+\hline 
+ 
+\multicolumn{4}{l}{\textbf{Demerit points group indicators:}}  \\ 
+ 
+0 points  &  1.886  &  1.823  &  1.902  &  1.879  &  1.435  &  5.335   \\ 
+ 
+1 points  &  1.439  &  1.831  &  1.459  &  1.889  &  0.971  &  5.348   \\ 
+ 
+2 points  &  1.356  &  1.822  &  1.387  &  1.876  &  0.844  &  5.335   \\ 
+ 
+3 points  &  1.395  &  1.822  &  1.402  &  1.877  &  0.984  &  5.333   \\ 
+ 
+4 points  &  0.974  &  1.823  &  1.001  &  1.878  &  0.473  &  5.337   \\ 
+ 
+5 points  &  0.941  &  1.821  &  0.983  &  1.876  &  0.365  &  5.336   \\ 
+ 
+6 points  &  1.018  &  1.821  &  1.011  &  1.875  &  0.665  &  5.333   \\ 
+ 
+7 points  &  0.691  &  1.823  &  0.716  &  1.878  &  0.189  &  5.340   \\ 
+ 
+8 points  &  0.530  &  1.821  &  0.552  &  1.876  &  0.039  &  5.334   \\ 
+ 
+9 points  &  0.633  &  1.823  &  0.603  &  1.878  &  0.412  &  5.340   \\ 
+ 
+10 points  &  0.129  &  1.824  &  0.152  &  1.879  & -0.375  &  5.348   \\ 
+ 
+11-20 points  & -0.268  &  1.816  & -0.241  &  1.869  & -0.815  &  5.337   \\ 
+ 
+21-30 points  & -0.492  &  1.832  & -0.468  &  1.885  & -1.096  &  5.771   \\ 
+ 
+
+\hline 
+ 
+\multicolumn{4}{l}{\textbf{Policy and points group interactions:}}  \\ 
+ 
+0 points  &  0.126  &  0.049  &  0.116  &  0.058  &  0.161  &  0.092   \\ 
+ 
+1 points  & -0.195  &  0.228  & -0.183  &  0.260  & -0.241  &  0.468   \\ 
+ 
+2 points  & -0.093  &  0.087  & -0.101  &  0.100  & -0.060  &  0.174   \\ 
+ 
+3 points  & -0.171  &  0.070  & -0.161  &  0.080  & -0.219  &  0.144   \\ 
+ 
+4 points  & -0.461  &  0.152  & -0.456  &  0.171  & -0.484  &  0.335   \\ 
+ 
+5 points  & -0.427  &  0.107  & -0.440  &  0.119  & -0.369  &  0.250   \\ 
+ 
+6 points  & -0.660  &  0.116  & -0.645  &  0.128  & -0.713  &  0.284   \\ 
+ 
+7 points  & -0.916  &  0.184  & -0.915  &  0.200  & -0.933  &  0.484   \\ 
+ 
+8 points  & -0.893  &  0.171  & -0.893  &  0.184  & -0.898  &  0.458   \\ 
+ 
+9 points  & -1.174  &  0.210  & -1.121  &  0.223  & -1.458  &  0.617   \\ 
+ 
+10 points  & -1.106  &  0.285  & -1.110  &  0.304  & -1.082  &  0.839   \\ 
+ 
+11-20 points  & -1.559  &  0.223  & -1.569  &  0.233  & -1.466  &  0.774   \\ 
+ 
+21-30 points  & -2.997  &  0.940  & -3.004  &  0.960  & -2.852  &  4.542   \\ 
+ 
+31-150 points  & -5.460  &  3.088  & -5.431  &  3.155  & -6.373  & 13.261   \\ 
+ 
+
+\hline 
+ 
+
+Drivers 
+ & \multicolumn{2}{r}{265,083}  & \multicolumn{2}{r}{214,936}  & \multicolumn{2}{r}{50,147}   \\ 
+ 
+
+Driver days 
+ & \multicolumn{2}{r}{387,028,979}  & \multicolumn{2}{r}{313,813,645}  & \multicolumn{2}{r}{73,215,334}   \\ 
+ 
+
+SSR 
+ & \multicolumn{2}{r}{1,111,029}  & \multicolumn{2}{r}{955,252}  & \multicolumn{2}{r}{155,832}   \\ 
+ 
+
+\hline 
+ 
+\end{tabular} 
+\caption{Fixed effects regression models, with CRVE (drivers with high demerit-point balances)} 
+Fixed effects regression coefficients after estimating driver-specific intercept coefficients. 
+Samples are drawn by randomly selecting seventy per cent of the drivers. 
+Standard errors were calculated using the cluster-robust covariance matrix estimator, 
+clustering on the individual driver. 
+\label{tab:FE_regs_CRVE_high_pts} 
+\end{table} 
+ 
