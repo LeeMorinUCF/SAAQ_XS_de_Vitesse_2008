@@ -466,9 +466,24 @@ saaq_out <- saaq_out[sample == 'train',
                                              'policy_int', 'events_int',
                                              'sample')]
 
-
+# Remove duplicates.
 saaq_out <- unique(saaq_out)
 summary(saaq_out)
+
+# Verify that date and xtseq cmbinations are unique.
+saaq_out[, .N, by = c('xtseq', 'date')]
+summary(saaq_out[, .N, by = c('xtseq', 'date')])
+
+
+saaq_out[, .N, by = c('xtseq', 'date')][, .N, by = 'N']
+
+# Inspect one.
+saaq_out[, .N, by = c('xtseq', 'date')][N == 8, ]
+saaq_out[xtseq == 2304109, ]
+# Problem: curr_pts_grp change throughout the day.
+
+# Need to adjust dates to create distinct dates.
+# Make a new format with more granular date variables.
 
 
 
