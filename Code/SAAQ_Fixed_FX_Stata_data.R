@@ -603,27 +603,46 @@ table(saaq_data[, day_ticket_time], useNA = 'ifany')
 
 # Finally, pad number of minutes with zeros, when necessary.
 saaq_data[, day_ticket_time_hour := floor(day_ticket_time_num)]
-saaq_data[, day_ticket_time_AMPM := 'AM']
-saaq_data[day_ticket_time_hour > 12, day_ticket_time_AMPM := 'PM']
-saaq_data[day_ticket_time_hour > 12, day_ticket_time_hour := day_ticket_time_hour - 12]
+# Format for 12-hour days:
+# saaq_data[, day_ticket_time_AMPM := 'AM']
+# saaq_data[day_ticket_time_hour > 12, day_ticket_time_AMPM := 'PM']
+# saaq_data[day_ticket_time_hour > 12, day_ticket_time_hour := day_ticket_time_hour - 12]
 saaq_data[, day_ticket_time_mins := sprintf('00%d',
                                             as.integer(round(day_ticket_time_num -
                                                                floor(day_ticket_time_num), 2)*58 + 1))]
 
 # Put it all together.
-# 24-hour clock version:
+# # 24-hour clock version:
 # saaq_data[, day_ticket_time := sprintf('%d:%s',
 #                                        day_ticket_time_hour,
 #                                        substring(day_ticket_time_mins,
 #                                                  nchar(day_ticket_time_mins) - 1,
 #                                                  nchar(day_ticket_time_mins)))]
-# 12-hour clock version:
-saaq_data[, day_ticket_time := sprintf('%d:%s %s',
+
+# 24-hour clock version, up to the second:
+saaq_data[, day_ticket_time := sprintf('%d:%s:00',
                                        day_ticket_time_hour,
                                        substring(day_ticket_time_mins,
                                                  nchar(day_ticket_time_mins) - 1,
-                                                 nchar(day_ticket_time_mins)),
-                                       day_ticket_time_AMPM)]
+                                                 nchar(day_ticket_time_mins)))]
+
+# # 24-hour clock version, up to the millisecond:
+# saaq_data[, day_ticket_time := sprintf('%d:%s:00.000',
+#                                        day_ticket_time_hour,
+#                                        substring(day_ticket_time_mins,
+#                                                  nchar(day_ticket_time_mins) - 1,
+#                                                  nchar(day_ticket_time_mins)))]
+
+
+
+
+# 12-hour clock version:
+# saaq_data[, day_ticket_time := sprintf('%d:%s %s',
+#                                        day_ticket_time_hour,
+#                                        substring(day_ticket_time_mins,
+#                                                  nchar(day_ticket_time_mins) - 1,
+#                                                  nchar(day_ticket_time_mins)),
+#                                        day_ticket_time_AMPM)]
 
 
 
@@ -635,11 +654,22 @@ table(saaq_data[, day_ticket_time], useNA = 'ifany')
 #                                   month(date),
 #                                   day(date),
 #                                   year(date))]
-saaq_data[, date_stata := format(date, '%d/%s/%d')]
+# saaq_data[, date_stata := format(date, '%d/%m/20%y')]
+saaq_data[, date_stata := sprintf('%s%s%s',
+                                  format(date, '%d'),
+                                  tolower(month.abb[as.integer(format(date, '%m'))]),
+                                  format(date, '20%y'))]
+
+head(saaq_data[, date_stata])
+tail(saaq_data[, date_stata])
+
+
+# tolower(month.abb[12])
 
 
 # Create a variable with both date and time.
 # saaq_data[, date_time := sprintf('%s %s', date, day_ticket_time)]
+# saaq_data[, date_time := sprintf('%s %s', date_stata, day_ticket_time)]
 saaq_data[, date_time := sprintf('%s %s', date_stata, day_ticket_time)]
 head(saaq_data[, date_time], 20)
 tail(saaq_data[, date_time], 20)
@@ -744,7 +774,20 @@ for (file_tag in file_tag_list) {
 }
 
 
-# # Check output dataset.
+
+
+
+
+# Check output dataset.
+saaq_check <- saaq_data[sub_sel_obsn == TRUE, check_var_names, with = FALSE]
+#
+#
+# saaq_check[, .N, by = c('xtseq', 'date')]
+# summary(saaq_check[, .N, by = c('xtseq', 'date')])
+
+
+
+# # Check output dataset (earlier version).
 # saaq_check <- saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE]
 #
 #
