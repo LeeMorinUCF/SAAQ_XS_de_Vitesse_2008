@@ -22,7 +22,7 @@
 # College of Business
 # University of Central Florida
 #
-# June 25, 2021
+# July 31, 2021
 #
 ################################################################################
 #
@@ -144,6 +144,9 @@ saaq_train <- fread(in_path_file_name)
 
 summary(saaq_train)
 
+
+
+
 # summary(saaq_train[, .N, by = date])
 # head(saaq_train, 394)
 
@@ -228,6 +231,12 @@ saaq_train[, sample := 'train']
 saaq_data <- saaq_train
 
 rm(saaq_train)
+
+
+# Check the craziest driver.
+# This one should have 26 tickets in one day.
+saaq_data[seq == 2868161, ]
+
 
 
 # saaq_data[date >= sample_beg & date <= sample_end,
@@ -321,12 +330,12 @@ saaq_data[, policy := date >= april_fools_date]
 # Use individual-level counts of days in the projections of the driver dummies.
 
 # Calculate denominators by driver for regressions on driver dummies.
-saaq_data[, num_by_seq := sum(num), by = 'seq']
-saaq_data[, num_policy_by_seq := sum(num*policy), by = 'seq']
-head(saaq_data[, c('seq', 'num_by_seq', 'num_policy_by_seq')])
-head(saaq_data[seq > 0, c('seq', 'num_by_seq', 'num_policy_by_seq')])
-summary(saaq_data[, c('seq', 'num_by_seq', 'num_policy_by_seq')])
-summary(saaq_data[seq > 0, c('seq', 'num_by_seq', 'num_policy_by_seq')])
+# saaq_data[, num_by_seq := sum(num), by = 'seq']
+# saaq_data[, num_policy_by_seq := sum(num*policy), by = 'seq']
+# head(saaq_data[, c('seq', 'num_by_seq', 'num_policy_by_seq')])
+# head(saaq_data[seq > 0, c('seq', 'num_by_seq', 'num_policy_by_seq')])
+# summary(saaq_data[, c('seq', 'num_by_seq', 'num_policy_by_seq')])
+# summary(saaq_data[seq > 0, c('seq', 'num_by_seq', 'num_policy_by_seq')])
 
 
 
@@ -340,6 +349,7 @@ saaq_data[events == 1 & num > 1, .N]
 saaq_data[events == 1 & num > 1, ]
 # Make sure to weight by number of drivers.
 
+saaq_data[events == 1 & num > 1, sum(num)]
 
 
 ################################################################################
@@ -404,15 +414,19 @@ summary(saaq_data[xtseq == 9100000, .N, by = 'date'])
 head(as.Date(seq(as.numeric(as.Date('2006-04-01')),
                  as.numeric(as.Date('2010-03-31'))),
              origin = '1970-01-01'))
-# There are, in fact 1461 days in the sample period.
 tail(as.Date(seq(as.numeric(as.Date('2006-04-01')),
                  as.numeric(as.Date('2010-03-31'))),
              origin = '1970-01-01'))
+# There are, in fact 1461 days in the sample period.
 length(as.Date(seq(as.numeric(as.Date('2006-04-01')),
                    as.numeric(as.Date('2010-03-31'))),
                origin = '1970-01-01'))
 
 
+
+
+
+#--------------------------------------------------------------------------------
 
 # Now look at individual drivers with tickets.
 # Note that drivers with a ticket have only 1460 dates.
@@ -431,59 +445,181 @@ head(saaq_data[seq != 0, sum(num), by = 'seq'][V1 > 1460, seq])
 tail(saaq_data[seq != 0, sum(num), by = 'seq'][V1 > 1460, seq])
 length(saaq_data[seq != 0, sum(num), by = 'seq'][V1 > 1460, seq])
 length(unique(saaq_data[seq != 0, sum(num), by = 'seq'][V1 > 1460, seq]))
-# More that 20000 drivers with multiple tickets.
+# More than 20000 drivers with multiple tickets.
 
 
 # Most have at most two tickets in a day.
 # Some have more than twenty.
 saaq_data[seq != 0, sum(num), by = 'seq'][V1 > 1460, .N, by = 'V1']
 
+saaq_data[seq != 0, sum(num), by = 'seq'][V1 > 1460, .N, by = 'V1'][, sum(N)]
+
+
+# Who is this with 1486 days?
+saaq_data[seq != 0, sum(num), by = 'seq'][V1 == 1486, ]
+#        seq   V1
+# 1: 2868161 1486
 
 # Increase count of drivers with these tickets on each date.
-summary(saaq_data[seq != 0 & events == 1, sum(num), by = c('seq', 'date')])
+# summary(saaq_data[seq != 0 & events == 1, sum(num), by = c('seq', 'date')])
+
+# Instead: modify the date variable to include time.
 
 
 
 
 
-
-
-# Select variables for output.
-colnames(saaq_data)
-out_var_list <-  c('date', 'xtseq', 'sex', 'age_grp', 'past_active',
-                   'curr_pts_grp',
-                   'num', 'policy_int', 'events_int',
-                   'sample')
-
-saaq_out <- saaq_data[, out_var_list, with = FALSE]
+# # Select variables for output.
+# colnames(saaq_data)
+# out_var_list <-  c('date', 'xtseq', 'sex', 'age_grp', 'past_active',
+#                    'curr_pts_grp',
+#                    'num', 'policy_int', 'events_int',
+#                    'sample')
+#
+# saaq_out <- saaq_data[, out_var_list, with = FALSE]
+# # summary(saaq_out)
+#
+#
+# # Aggregate counts by all variables for drivers with multiple tickets.
+# saaq_out <- saaq_out[sample == 'train',
+#                      num := sum(num), by = c('date', 'xtseq', 'sex', 'age_grp', 'past_active',
+#                                              'curr_pts_grp',
+#                                              'policy_int', 'events_int',
+#                                              'sample')]
+#
+# # Remove duplicates.
+# saaq_out <- unique(saaq_out)
 # summary(saaq_out)
+#
+# # Verify that date and xtseq cmbinations are unique.
+# saaq_out[, .N, by = c('xtseq', 'date')]
+# summary(saaq_out[, .N, by = c('xtseq', 'date')])
+#
+#
+# saaq_out[, .N, by = c('xtseq', 'date')][, .N, by = 'N']
+#
+# # Inspect one.
+# saaq_out[, .N, by = c('xtseq', 'date')][N == 8, ]
+# saaq_out[xtseq == 2304109, ]
+# # Problem: curr_pts_grp change throughout the day.
+# # So, multiple date combinations are still distinct.
 
 
-# Aggregate counts by all variables for drivers with multiple tickets.
-saaq_out <- saaq_out[sample == 'train',
-                     num := sum(num), by = c('date', 'xtseq', 'sex', 'age_grp', 'past_active',
-                                             'curr_pts_grp',
-                                             'policy_int', 'events_int',
-                                             'sample')]
-
-# Remove duplicates.
-saaq_out <- unique(saaq_out)
-summary(saaq_out)
-
-# Verify that date and xtseq cmbinations are unique.
-saaq_out[, .N, by = c('xtseq', 'date')]
-summary(saaq_out[, .N, by = c('xtseq', 'date')])
-
-
-saaq_out[, .N, by = c('xtseq', 'date')][, .N, by = 'N']
-
-# Inspect one.
-saaq_out[, .N, by = c('xtseq', 'date')][N == 8, ]
-saaq_out[xtseq == 2304109, ]
-# Problem: curr_pts_grp change throughout the day.
 
 # Need to adjust dates to create distinct dates.
 # Make a new format with more granular date variables.
+
+# Of course, there is that one guy with 26 tickets,
+# so it is not as simple as tagging the tickets with hours.
+
+# Sort the data by xtseq, then date.
+saaq_data <- saaq_data[order(xtseq, date), ]
+head(saaq_data)
+tail(saaq_data)
+
+
+# Now generate a cumulative count of tickets.
+saaq_data[, cum_tickets := seq(nrow(saaq_data))]
+saaq_data[, min_cum_tickets := min(cum_tickets), by = c('xtseq', 'date')]
+
+# Calculate the ticket number per driver day.
+# saaq_data[, day_ticket_count := cum_tickets - min_cum_tickets + 1]
+saaq_data[, day_ticket_num := cum_tickets - min_cum_tickets + 1]
+
+# Calculate the full count of tickets each driver day.
+saaq_data[, day_ticket_count := max(day_ticket_num), by = c('xtseq', 'date')]
+
+
+# Check counts:
+saaq_data[, .N, by = 'day_ticket_num']
+# Why only up to 9 tickets in a day?
+# And why are there more with 2 tickets than before?
+# Need to remove a num := sum(num) aggregation in data prep.
+
+
+# Inspect a file with multiple tickets in a day.
+saaq_data[xtseq == 2304109, ]
+
+# This one should have 26 tickets in one day.
+saaq_data[xtseq == 2868161, ]
+
+
+
+# Find the driver with 26 tickets.
+saaq_data[, .N, by = c('xtseq', 'date')][N == 26, ]
+#     xtseq       date  N
+# 1: 847237 2007-11-20 26
+saaq_data[, .N, by = c('xtseq', 'date')][N == 9, ]
+
+
+
+
+
+
+#--------------------------------------------------------------------------------
+# Create time-of-day variable from day_ticket_num.
+#--------------------------------------------------------------------------------
+
+# Spread tickets evenly over the day from 1:00 AM to 11:00 PM
+# (just in case rounding is a problem).
+saaq_data[, day_ticket_time_num := 1 + day_ticket_num/day_ticket_count*22]
+
+saaq_data[, day_ticket_time_num]
+
+
+# Now create a string for the exact time of day.
+
+# Test for the hour of the ticket with arbitrary number of minutes.
+saaq_data[, day_ticket_time := sprintf('%d:53',
+                                       floor(day_ticket_time_num))]
+head(saaq_data[day_ticket_time != '23:53', day_ticket_time], 20)
+tail(saaq_data[day_ticket_time != '23:53', day_ticket_time], 20)
+table(saaq_data[, day_ticket_time], useNA = 'ifany')
+
+
+# Test for the minute of the ticket with an arbitrary hour.
+# Spread tickets evenly over the hour from X:01 to X:59 PM
+# (just in case rounding is a problem).
+saaq_data[, day_ticket_time := sprintf('5:%d',
+                                       as.integer(round(day_ticket_time_num -
+                                                          floor(day_ticket_time_num), 2)*58 + 1))]
+table(saaq_data[, day_ticket_time], useNA = 'ifany')
+
+# Inspect number of seconds.
+table(saaq_data[, as.integer(round(day_ticket_time_num -
+                                     floor(day_ticket_time_num), 2)*58 + 1)], useNA = 'ifany')
+
+class(saaq_data[, as.integer(round(day_ticket_time_num -
+                                     floor(day_ticket_time_num), 2)*58 + 1)])
+
+
+# Generate time of ticket up in hours and seconds.
+saaq_data[, day_ticket_time := sprintf('%d:%d',
+                                       floor(day_ticket_time_num),
+                                       as.integer(round(day_ticket_time_num -
+                                                          floor(day_ticket_time_num), 2)*58 + 1))]
+table(saaq_data[, day_ticket_time], useNA = 'ifany')
+
+
+# Finally, pad number of minutes with zeros, when necessary.
+saaq_data[, day_ticket_time_hour := floor(day_ticket_time_num)]
+saaq_data[, day_ticket_time_mins := sprintf('00%d',
+                                            as.integer(round(day_ticket_time_num -
+                                                               floor(day_ticket_time_num), 2)*58 + 1))]
+
+saaq_data[, day_ticket_time := sprintf('%d:%s',
+                                       day_ticket_time_hour,
+                                       substring(day_ticket_time_mins,
+                                                 nchar(day_ticket_time_mins) - 1,
+                                                 nchar(day_ticket_time_mins)))]
+table(saaq_data[, day_ticket_time], useNA = 'ifany')
+
+
+# Create a variable with both date and time.
+saaq_data[, date_time := sprintf('%s %s', date, day_ticket_time)]
+head(saaq_data[, date_time], 20)
+tail(saaq_data[, date_time], 20)
+
 
 
 
@@ -511,11 +647,11 @@ for (file_tag in file_tag_list) {
 
   # Select observations based on past activity.
   if (file_tag == 'all_pts') {
-    # saaq_out[, sel_obsn := sample == 'train']
-    saaq_out[, sel_obsn := TRUE]
+    saaq_data[, sel_obsn := sample == 'train']
+    # saaq_out[, sel_obsn := TRUE]
   } else if (file_tag == 'high_pts') {
-    # saaq_out[, sel_obsn := past_active == TRUE & sample == 'train']
-    saaq_out[, sel_obsn := past_active == TRUE]
+    saaq_data[, sel_obsn := past_active == TRUE & sample == 'train']
+    # saaq_out[, sel_obsn := past_active == TRUE]
   } else {
     stop(sprintf("file_tag '%s' not recognized.", file_tag))
   }
@@ -541,11 +677,14 @@ for (file_tag in file_tag_list) {
 
 
     if (sex_sel == 'A') {
-      saaq_out[, sub_sel_obsn := sel_obsn == TRUE]
+      saaq_data[, sub_sel_obsn := sel_obsn == TRUE]
+      # saaq_out[, sub_sel_obsn := sel_obsn == TRUE]
     } else if (sex_sel == 'M') {
-      saaq_out[, sub_sel_obsn := sex == 'M' & sel_obsn == TRUE]
+      saaq_data[, sub_sel_obsn := sex == 'M' & sel_obsn == TRUE]
+      # saaq_out[, sub_sel_obsn := sex == 'M' & sel_obsn == TRUE]
     } else if (sex_sel == 'F') {
-      saaq_out[, sub_sel_obsn := sex == 'F' & sel_obsn == TRUE]
+      saaq_data[, sub_sel_obsn := sex == 'F' & sel_obsn == TRUE]
+      # saaq_out[, sub_sel_obsn := sex == 'F' & sel_obsn == TRUE]
     } else {
       stop(sprintf('Sample selection sex_sel = %s not recognized.', sex_sel))
     }
@@ -557,12 +696,17 @@ for (file_tag in file_tag_list) {
                              data_out_path, sex_sel, file_tag)
 
 
-    check_var_names <- c('date', 'xtseq', 'sex', 'age_grp', 'curr_pts_grp',
+    # check_var_names <- c('date', 'xtseq', 'sex', 'age_grp', 'curr_pts_grp',
+    #                      'num', 'policy_int', 'events_int')
+    check_var_names <- c('date_time', 'xtseq', 'sex', 'age_grp', 'curr_pts_grp',
                          'num', 'policy_int', 'events_int')
-    print(summary(saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE]))
+    # print(summary(saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE]))
+    print(summary(saaq_data[sub_sel_obsn == TRUE, check_var_names, with = FALSE]))
 
 
-    write.csv(saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE],
+    # write.csv(saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE],
+    #           file = out_file_name, row.names = FALSE)
+    write.csv(saaq_data[sub_sel_obsn == TRUE, check_var_names, with = FALSE],
               file = out_file_name, row.names = FALSE)
 
 
@@ -576,12 +720,12 @@ for (file_tag in file_tag_list) {
 }
 
 
-# Check output dataset.
-saaq_check <- saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE]
-
-
-saaq_check[, .N, by = c('xtseq', 'date')]
-summary(saaq_check[, .N, by = c('xtseq', 'date')])
+# # Check output dataset.
+# saaq_check <- saaq_out[sub_sel_obsn == TRUE, check_var_names, with = FALSE]
+#
+#
+# saaq_check[, .N, by = c('xtseq', 'date')]
+# summary(saaq_check[, .N, by = c('xtseq', 'date')])
 
 
 

@@ -27,7 +27,7 @@ clear all
 * Import dataset.
 import delimited using saaq_check_FE_M_high_pts.csv , delimiters(",")
 * Dataset has the following variables:
-* check_var_names <- c('date', 'xtseq', 'sex', 'age_grp', 'curr_pts_grp',
+* check_var_names <- c('date_time', 'xtseq', 'sex', 'age_grp', 'curr_pts_grp',
 *                      'num', 'policy_int', 'events_int')
 
 
@@ -36,7 +36,7 @@ import delimited using saaq_check_FE_M_high_pts.csv , delimiters(",")
 
 * Date is in a string format.
 * Must be converted to a date format.
-generate xtdate=date(date,"YMD")
+generate xtdate=date(date_time,"YMD")
 
 
 * Declare time and id variables.
