@@ -603,20 +603,44 @@ table(saaq_data[, day_ticket_time], useNA = 'ifany')
 
 # Finally, pad number of minutes with zeros, when necessary.
 saaq_data[, day_ticket_time_hour := floor(day_ticket_time_num)]
+saaq_data[, day_ticket_time_AMPM := 'AM']
+saaq_data[day_ticket_time_hour > 12, day_ticket_time_AMPM := 'PM']
+saaq_data[day_ticket_time_hour > 12, day_ticket_time_hour := day_ticket_time_hour - 12]
 saaq_data[, day_ticket_time_mins := sprintf('00%d',
                                             as.integer(round(day_ticket_time_num -
                                                                floor(day_ticket_time_num), 2)*58 + 1))]
 
-saaq_data[, day_ticket_time := sprintf('%d:%s',
+# Put it all together.
+# 24-hour clock version:
+# saaq_data[, day_ticket_time := sprintf('%d:%s',
+#                                        day_ticket_time_hour,
+#                                        substring(day_ticket_time_mins,
+#                                                  nchar(day_ticket_time_mins) - 1,
+#                                                  nchar(day_ticket_time_mins)))]
+# 12-hour clock version:
+saaq_data[, day_ticket_time := sprintf('%d:%s %s',
                                        day_ticket_time_hour,
                                        substring(day_ticket_time_mins,
                                                  nchar(day_ticket_time_mins) - 1,
-                                                 nchar(day_ticket_time_mins)))]
+                                                 nchar(day_ticket_time_mins)),
+                                       day_ticket_time_AMPM)]
+
+
+
 table(saaq_data[, day_ticket_time], useNA = 'ifany')
 
 
+# Create a date variable in a format that will be recognized by Stata.
+# saaq_data[, date_stata := sprintf('%d/%s/%d',
+#                                   month(date),
+#                                   day(date),
+#                                   year(date))]
+saaq_data[, date_stata := format(date, '%d/%s/%d')]
+
+
 # Create a variable with both date and time.
-saaq_data[, date_time := sprintf('%s %s', date, day_ticket_time)]
+# saaq_data[, date_time := sprintf('%s %s', date, day_ticket_time)]
+saaq_data[, date_time := sprintf('%s %s', date_stata, day_ticket_time)]
 head(saaq_data[, date_time], 20)
 tail(saaq_data[, date_time], 20)
 
