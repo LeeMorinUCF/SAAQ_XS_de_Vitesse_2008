@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * Stata_FE_Checks_High_Pts.do
+ * Stata_FE_CRVE_sim_test.do
  * verifies the calculation of fixed effects regressions
  * with cluster-robust standard errors
  * for the subsample with drivers who have had high demerit point balances.
@@ -24,7 +24,7 @@
 
 * Declare log file and close any open log file.
 capture log close
-log using Stata_FE_Checks_High_Pts.log, replace
+log using Stata_FE_CRVE_sim_test.log, replace
 
 * Clear memory.
 clear all
@@ -36,17 +36,17 @@ clear all
 
 
 * Import dataset.
-import delimited using saaq_check_FE_M_high_pts.csv , delimiters(",")
+import delimited using Stata_FE_CRVE_sim_data.csv , delimiters(",")
 * Dataset has the following variables:
-* check_var_names <- c('date_time', 'xtseq', 'sex', 'age_grp', 'curr_pts_grp',
-*                      'num', 'policy_int', 'events_int')
+* check_var_names <- c('date_stata', 'seq', 'age_grp', 'curr_pts_grp',
+*                      'policy_int', 'events_int')
 
 
 * Inspect data.
 
 * Integers.
-summarize(xtseq)
-summarize(num)
+summarize(seq)
+* summarize(num)
 
 * Binary variables (as integers).
 summarize(events_int)
@@ -59,8 +59,8 @@ summarize(curr_pts_grp)
 tabulate(curr_pts_grp)
 summarize(age_grp)
 tabulate(age_grp)
-summarize(sex)
-tabulate(sex)
+* summarize(sex)
+* tabulate(sex)
 
 
 
@@ -79,12 +79,17 @@ tabulate(sex)
 * generate xtdate=clock(date_time, "DMY hm AM")
 * format xtdate %tCDDmonCCYY_HH:MM_AM
 * Try again with date and time up to the second.
-generate double xtdate=clock(date_time, "DMY hms")
-format xtdate %tCDDmonCCYY_HH:MM:SS
+* generate double xtdate=clock(date_time, "DMY hms")
+* format xtdate %tCDDmonCCYY_HH:MM:SS
+* Simpler version for tests with simulated data.
+generate xtdate=date(date_stata,"DMY")
+format xtdate %tCDDmonCCYY
+
+
 
 
 * Declare time and id variables.
-xtset xtseq xtdate
+xtset seq xtdate
 
 
 /*******************************************************************************
@@ -94,47 +99,16 @@ xtset xtseq xtdate
 
 
 * Run a simple fixed effect regression.
-xtreg events_int policy_int [fweight=num], fe
-
-* After all this trouble, Stata responds with this:
-* weight must be constant within xtseq
-
-* So, Stata cannot handle panel data with different frequency weights
-* across observations within individual driver IDs.
-
-* However, that is the reality in the dataset, a driver has multiple days with
-* one observation (e.g. no ticket) and a different number of days with tickets.
-
-
-* The only option seems to be to expand the dataset into
-* individual observations with weight one, by driver day.
-* This would result in an enormous dataset, on the order of hundreds of gigabytes,
-* which would involve a prohibitively high cost in terms of
-* computing time and memory resources.
-
-* That is one more reason that open-source software is superior:
-* The flexibility to accommodate the real world,
-* rather than forcing reality to fit an artificial environment. 
-
-
-
-/*******************************************************************************
- * GAME OVER!
- *******************************************************************************
-*/
-
-
-* The following scripts are a sketch and have not been tested.
-* Stata is unable to estimate these models with the frequency weights in the dataset.
-
+* xtreg events_int policy_int [fweight=num], fe
+xtreg events_int policy_int, fe
 
 
 * Now introduce a categorical variable.
-xtreg events_int policy_int curr_pts_grp [fweight=num], fe
+xtreg events_int policy_int curr_pts_grp, fe
 
 
 * Try the full model.
-* xtreg events_int policy_int c.curr_pts_grp c.policy_int#c.curr_pts_grp [fweight=num], fe
+* xtreg events_int policy_int c.curr_pts_grp c.policy_int#c.curr_pts_grp, fe
 
 
 /*******************************************************************************
@@ -143,7 +117,7 @@ xtreg events_int policy_int curr_pts_grp [fweight=num], fe
 */
 
 * Run with cluster-robust standard errors, clustered on the driver ID.
-xtreg events_int policy_int c.curr_pts_grp c.policy_int#c.curr_pts_grp [fweight=num], fe vce(cluster cvar)
+xtreg events_int policy_int c.curr_pts_grp c.policy_int#c.curr_pts_grp, fe vce(cluster cvar)
 
 
 
