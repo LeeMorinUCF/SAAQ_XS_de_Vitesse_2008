@@ -121,7 +121,7 @@ max(date_list)
 
 
 # Set sequence of index numbers for drivers.
-num_drivers_each_age <- 100
+num_drivers_each_age <- 500
 num_drivers <- num_drivers_each_age*length(age_group_list)
 seq_list <- seq(num_drivers)
 
@@ -163,9 +163,25 @@ saaq_data[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 saaq_data[, policy := date >= april_fools_date]
 
 
+# Define a driver-specific fixed effect.
+set.seed(42)
+# num_drivers <- num_drivers_each_age*length(age_group_list)
+# num_dates <- length(date_list)
+saaq_data[, FE_unif := rep(runif(num_drivers), each = num_dates)]
+# Verify transitions at each new driver.
+saaq_data[seq(1, num_dates + 2), ]
+saaq_data[seq(nrow(saaq_data) - num_dates - 2, nrow(saaq_data)), ]
+
+# Uniformly distributed with no variance by driver.
+summary(saaq_data[, FE_unif])
+summary(saaq_data[, var(FE_unif), by = 'seq'])
+
+
 # Inspection of covariates.
 head(saaq_data, 50)
 tail(saaq_data, 50)
+summary(saaq_data)
+
 
 
 saaq_data[, .N, by = 'age_grp']
@@ -173,14 +189,25 @@ saaq_data[, .N, by = 'curr_pts_grp']
 
 
 # Generate probability of event.
-beta_0 <- 0.005
-beta_age <- 0.001*c(1.0, 7.5, 10, 7.5, 5.0, 2.0, 1.0)
-beta_pts <- 0.0001*c(seq(0, 10), 12.0, 15.0, 20.0)
-beta_pts_policy <- - 0.0001*c(seq(0, 10), 12.0, 15.0, 20.0)/2
+# Notice that the coefficients are an order of magnitude larger
+# to account for the fact that the simulated sample is much smaller.
+beta_0 <- 0.05
+beta_policy <- - 0.02
+beta_FE <- 0.01
+beta_age <- 0.01*c(1.0, 7.5, 10, 7.5, 5.0, 2.0, 1.0)
+# Past points indicate tendency to get a ticket.
+# beta_pts <- 0.01*c(seq(0, 10), 12.0, 15.0, 20.0)
+# Past points are an ineffective deterrent, just balancing
+# with the benefit of speeding.
+beta_pts <- 0.00*c(seq(0, 10), 12.0, 15.0, 20.0)
+beta_pts_policy <- - 0.001*c(seq(0, 10), 12.0, 15.0, 20.0)/2
 
 
 # Generate probability of event.
 saaq_data[, prob := beta_0]
+saaq_data[, prob := prob + beta_FE*FE_unif]
+saaq_data[policy == TRUE,
+          prob := prob + beta_policy]
 for (i in length(age_group_list)) {
   saaq_data[age_grp == age_group_list[i],
             prob := prob + beta_age[i]]
@@ -232,7 +259,11 @@ tail(saaq_data[, date_stata])
 saaq_data[, policy_int := as.integer(policy)]
 saaq_data[, events_int := as.integer(events)]
 
-
+# Verify conversion.
+table(saaq_data[, policy_int],
+      saaq_data[, policy], useNA = 'ifany')
+table(saaq_data[, events_int],
+      saaq_data[, events], useNA = 'ifany')
 
 
 ################################################################################
@@ -249,8 +280,435 @@ write.csv(saaq_data[, check_var_names, with = FALSE],
 
 
 ################################################################################
+################################################################################
 # Analysis using algorithms in R
 ################################################################################
+################################################################################
+
+
+# Without weights, all observations have weight 1.
+saaq_data[, num := 1L]
+
+# With the artificial data, all observations are included.
+saaq_data[, sub_sel_obsn := TRUE]
+
+
+################################################################################
+# First stage FWL Regressions
+################################################################################
+
+
+# Generate a new dependent variable for fixed-effect regressions.
+# For Frisch-Waugh-Lovell, this is the deviations from individual means.
+saaq_data[, avg_events := sum(events*num)/sum(num), by = 'seq']
+saaq_data[, dev_events := events - avg_events, by = 'seq']
+# summary(saaq_data[, c('events', 'avg_events')])
+
+# Create an FWL projection of the policy indicator.
+saaq_data[, avg_policy := sum(policy*num)/sum(num), by = 'seq']
+saaq_data[, dev_policy := policy - avg_policy, by = 'seq']
+
+summary(saaq_data[, c('dev_events', 'dev_policy')])
+
+
+
+# Generate new variables for current points categories.
+for (curr_pts_level in curr_pts_grp_list) {
+
+
+  print(sprintf('FWL projections for curr_pts_grp %s', curr_pts_level))
+
+  # Generate a new column to indicate the average time at this point level.
+  saaq_data[, is_curr_pts_grp := (curr_pts_grp == curr_pts_level)]
+  saaq_data[, avg_FWL_count :=
+              sum(is_curr_pts_grp*num)/sum(num), by = 'seq']
+
+  # Allocate this variable to a new column.
+  col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
+  saaq_data[, col_var_name] <- saaq_data[, is_curr_pts_grp - avg_FWL_count]
+
+
+  print(sprintf('FWL projections for policy*curr_pts_grp %s', curr_pts_level))
+
+  # Now calculate a new column to indicate the average time at this point level,
+  # during the post-policy period: a policy-points-level interaction.
+  saaq_data[, avg_FWL_count :=
+              sum(is_curr_pts_grp*policy*num)/sum(num), by = 'seq']
+
+  # Allocate this variable to a new column.
+  col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
+  saaq_data[, col_var_name] <- saaq_data[, is_curr_pts_grp*policy - avg_FWL_count]
+
+}
+
+
+colnames(saaq_data)
+# summary(saaq_data)
+
+
+################################################################################
+#
+# Fixed Effects Regressions:
+# Policy effect only.
+#
+################################################################################
+
+var_list <- c('policy')
+
+# Eliminate the constant term.
+# fmla_str <- sprintf('dev_events ~ 0 + %s',
+#                     paste(var_list, collapse = " + "))
+# Keep the constant to match Stata.
+fmla_str <- sprintf('dev_events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+# Slope is the same, for both estimates and standard errors.
+# Not sure what convention Stata is using for the intercept.
+
+
+# Just to test, generate a new variable for the intercept.
+saaq_data[, dev_intercept := 0.0099744/0.0566031]
+
+var_list <- c('dev_intercept', 'policy')
+
+# Eliminate the constant term.
+# Constant term is supplied above.
+fmla_str <- sprintf('dev_events ~ 0 + %s',
+                    paste(var_list, collapse = " + "))
+# Keep the constant to match Stata.
+# fmla_str <- sprintf('dev_events ~ %s',
+#                     paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+# Slope is the same, for both estimates and standard errors.
+# Intercept is the same but the standard error is different.
+
+
+################################################################################
+#
+# Fixed Effects Regressions:
+# Policy effect and current points group category.
+# No interactions.
+#
+################################################################################
+
+var_list_0 <- c('policy')
+
+# Include all levels.
+# var_list_1 <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
+# Drop first category to match Stata.
+var_list_1 <- sprintf('curr_pts_%s',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+
+var_list <- c(var_list_0, var_list_1)
+
+
+# Keep the constant to match Stata.
+fmla_str <- sprintf('dev_events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+# All slope coefficients and standard errors match.
+# Not sure what convention Stata is using for the intercept.
+
+
+################################################################################
+#
+# Fixed Effects Regressions:
+# Full model: current points group and policy interaction.
+#
+################################################################################
+
+
+var_list_0 <- c('policy')
+
+# Set the list of variables by points category.
+# Assumes constant omitted:
+# var_list_1 <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
+var_list_1 <- sprintf('curr_pts_%s',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+# var_list_2 <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list))
+var_list_2 <- sprintf('curr_pts_%s_policy',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+# Assumes constant included:
+# var_list_1 <- var_list_1[2:length(var_list_1)]
+# var_list_2 <- var_list_2[2:length(var_list_2)]
+# var_list <- c(var_list_1, 'avg_policy', var_list_2)
+# var_list <- c(var_list_1, var_list_2)
+var_list <- c(var_list_0, var_list_1, var_list_2)
+
+# Eliminate the constant term.
+# fmla_str <- sprintf('dev_events ~ 0 + %s',
+#                     paste(var_list, collapse = " + "))
+# Keep the constant to match Stata.
+fmla_str <- sprintf('dev_events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+
+
+
+################################################################################
+################################################################################
+# Version 2.0:
+# Fixed effects regressions with an aggregated dataset.
+################################################################################
+################################################################################
+
+
+# Store the original dataset.
+saaq_data_orig <- copy(saaq_data)
+# Replace with the original in case of problems.
+# saaq_data <- copy(saaq_data_orig)
+# The copy function makes a deep copy, instead of a pointer.
+
+# Aggregate by identical observations across each driver.
+colnames(saaq_data)
+
+saaq_data <- saaq_data[, num := sum(num),
+                            by = c('seq', 'policy', 'events',
+                                   'age_grp', 'curr_pts_grp',
+                                   'sub_sel_obsn')]
+
+summary(saaq_data)
+
+saaq_data <- unique(saaq_data[, c('seq', 'policy', 'events',
+                                  'age_grp', 'curr_pts_grp',
+                                  'sub_sel_obsn', 'num'),
+                              with = FALSE])
+# A nice small dataset, aggregated over number of identical observations.
+
+# Verify that the dataset matches.
+saaq_data[seq == 1, ]
+
+summary(saaq_data_orig[, sum(num), by = 'seq'])
+summary(saaq_data[, sum(num), by = 'seq'])
+
+summary(saaq_data_orig[, sum(num), by = 'age_grp'])
+summary(saaq_data[, sum(num), by = 'age_grp'])
+
+saaq_data_orig[, sum(num), by = 'age_grp']
+saaq_data[, sum(num), by = 'age_grp']
+
+
+summary(saaq_data_orig[, sum(num), by = 'curr_pts_grp'])
+summary(saaq_data[, sum(num), by = 'curr_pts_grp'])
+
+saaq_data_orig[, sum(num), by = 'curr_pts_grp']
+saaq_data[, sum(num), by = 'curr_pts_grp']
+
+# Looks the same, except that the aggregated data set
+# is much smaller: 93790 vs. 5113500 unique observations.
+
+################################################################################
+# First stage FWL Regressions
+################################################################################
+
+
+# Generate a new dependent variable for fixed-effect regressions.
+# For Frisch-Waugh-Lovell, this is the deviations from individual means.
+saaq_data[, avg_events := sum(events*num)/sum(num), by = 'seq']
+saaq_data[, dev_events := events - avg_events, by = 'seq']
+# summary(saaq_data[, c('events', 'avg_events')])
+
+# Create an FWL projection of the policy indicator.
+saaq_data[, avg_policy := sum(policy*num)/sum(num), by = 'seq']
+saaq_data[, dev_policy := policy - avg_policy, by = 'seq']
+
+summary(saaq_data[, c('dev_events', 'dev_policy')])
+
+
+
+# Generate new variables for current points categories.
+for (curr_pts_level in curr_pts_grp_list) {
+
+
+  print(sprintf('FWL projections for curr_pts_grp %s', curr_pts_level))
+
+  # Generate a new column to indicate the average time at this point level.
+  saaq_data[, is_curr_pts_grp := (curr_pts_grp == curr_pts_level)]
+  saaq_data[, avg_FWL_count :=
+              sum(is_curr_pts_grp*num)/sum(num), by = 'seq']
+
+  # Allocate this variable to a new column.
+  col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
+  saaq_data[, col_var_name] <- saaq_data[, is_curr_pts_grp - avg_FWL_count]
+
+
+  print(sprintf('FWL projections for policy*curr_pts_grp %s', curr_pts_level))
+
+  # Now calculate a new column to indicate the average time at this point level,
+  # during the post-policy period: a policy-points-level interaction.
+  saaq_data[, avg_FWL_count :=
+              sum(is_curr_pts_grp*policy*num)/sum(num), by = 'seq']
+
+  # Allocate this variable to a new column.
+  col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
+  saaq_data[, col_var_name] <- saaq_data[, is_curr_pts_grp*policy - avg_FWL_count]
+
+}
+
+
+colnames(saaq_data)
+# summary(saaq_data)
+
+
+################################################################################
+#
+# Fixed Effects Regressions:
+# Policy effect only.
+#
+################################################################################
+
+var_list <- c('policy')
+
+# Eliminate the constant term.
+# fmla_str <- sprintf('dev_events ~ 0 + %s',
+#                     paste(var_list, collapse = " + "))
+# Keep the constant to match Stata.
+fmla_str <- sprintf('dev_events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+# Slope is the same, for the estimates.
+
+# Standard error needs some adjustment for degrees of freedom.
+summ_lm <- summary(lm_spec)
+
+coef_lm <- summ_lm$coefficients
+
+s2_true <- sum(summ_lm$residuals^2 /
+                (saaq_data[, sum(num)] -
+                   (length(var_list) + num_drivers + 1)))
+sqrt(s2_true)
+# Bingo.
+
+
+se_adj <- s2_true/s2_lm
+
+
+
+################################################################################
+#
+# Fixed Effects Regressions:
+# Policy effect and current points group category.
+# No interactions.
+#
+################################################################################
+
+var_list_0 <- c('policy')
+
+# Include all levels.
+# var_list_1 <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
+# Drop first category to match Stata.
+var_list_1 <- sprintf('curr_pts_%s',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+
+var_list <- c(var_list_0, var_list_1)
+
+
+# Keep the constant to match Stata.
+fmla_str <- sprintf('dev_events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+# All slope coefficients and standard errors match.
+# Not sure what convention Stata is using for the intercept.
+
+
+################################################################################
+#
+# Fixed Effects Regressions:
+# Full model: current points group and policy interaction.
+#
+################################################################################
+
+
+var_list_0 <- c('policy')
+
+# Set the list of variables by points category.
+# Assumes constant omitted:
+# var_list_1 <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
+var_list_1 <- sprintf('curr_pts_%s',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+# var_list_2 <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list))
+var_list_2 <- sprintf('curr_pts_%s_policy',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+# Assumes constant included:
+# var_list_1 <- var_list_1[2:length(var_list_1)]
+# var_list_2 <- var_list_2[2:length(var_list_2)]
+# var_list <- c(var_list_1, 'avg_policy', var_list_2)
+# var_list <- c(var_list_1, var_list_2)
+var_list <- c(var_list_0, var_list_1, var_list_2)
+
+# Eliminate the constant term.
+# fmla_str <- sprintf('dev_events ~ 0 + %s',
+#                     paste(var_list, collapse = " + "))
+# Keep the constant to match Stata.
+fmla_str <- sprintf('dev_events ~ %s',
+                    paste(var_list, collapse = " + "))
+fmla <- as.formula(fmla_str)
+
+# Fit regression model on training sample for male drivers.
+lm_spec <- lm(formula = fmla,
+              data = saaq_data[sub_sel_obsn == TRUE, ],
+              weights = num,
+              model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+# Print a summary to screen.
+print(summary(lm_spec))
+
+
+
 
 
 
