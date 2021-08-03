@@ -618,14 +618,77 @@ summ_lm <- summary(lm_spec)
 
 coef_lm <- summ_lm$coefficients
 
-s2_true <- sum(summ_lm$residuals^2 /
+
+
+s2_true <- sum(summ_lm$residuals^2) /
                 (saaq_data[, sum(num)] -
-                   (length(var_list) + num_drivers + 1)))
+                   (length(var_list) + num_drivers + 1))
 sqrt(s2_true)
 # Bingo.
 
 
-se_adj <- s2_true/s2_lm
+# s2_lm <- sum(saaq_data[, num]*summ_lm$residuals^2) /
+#   (saaq_data[, sum(num)] -
+#      (length(var_list) + 1))
+# Close.
+s2_lm <- sum(summ_lm$residuals^2) /
+  (nrow(saaq_data) -
+     (length(var_list) + 1))
+sqrt(s2_lm)
+# Correct, it matches this:
+summ_lm$sigma
+
+
+se_adj <- sqrt(s2_true)/sqrt(s2_lm)
+
+coef_lm[, 'Std. Error']*se_adj
+
+# Replace the standard errors and other statistics
+# to account for difference in degrees of freedom.
+coef_adj <- coef_lm
+coef_adj[, 'Std. Error'] <- coef_lm[, 'Std. Error']*se_adj
+coef_adj[, 't value'] <- coef_adj[, 'Estimate']/coef_adj[, 'Std. Error']
+coef_adj[, 'Pr(>|t|)'] <- 2*pt(- abs(coef_adj[, 't value']),
+                                  df = (saaq_data[, sum(num)] -
+                                          (length(var_list) + num_drivers + 1)))
+
+
+# Create a function to adjust the table of
+# coefficients and standard errors.
+adj_coef_table <- function(coef_lm, resid_lm,
+                           num_obs, num_rows, num_vars, num_FE) {
+
+  # s^2 estimate for fixed effects model.
+  s2_true <- sum(resid_lm^2) /
+    (num_obs - (num_vars + num_FE + 1))
+
+  # s^2 estimate for the weighted model.
+  s2_lm <- sum(summ_lm$residuals^2) /
+    (num_rows - (num_vars + 1))
+
+  # Calculate adjustment ratio for standard errors.
+  se_adj <- sqrt(s2_true)/sqrt(s2_lm)
+
+  # Replace the standard errors and other statistics
+  # to account for difference in degrees of freedom.
+  coef_adj <- coef_lm
+  coef_adj[, 'Std. Error'] <- coef_lm[, 'Std. Error']*se_adj
+  coef_adj[, 't value'] <- coef_adj[, 'Estimate']/coef_adj[, 'Std. Error']
+  coef_adj[, 'Pr(>|t|)'] <- 2*pt(- abs(coef_adj[, 't value']),
+                                 df = (num_obs - (num_vars + num_FE + 1)))
+
+  return(coef_adj)
+}
+
+
+summ_lm <- summary(lm_spec)
+
+adj_coef_table(coef_lm = summ_lm$coefficients,
+               resid_lm = summ_lm$residuals,
+               num_obs = saaq_data[, sum(num)],
+               num_rows = nrow(saaq_data),
+               num_vars = length(var_list),
+               num_FE = num_drivers)
 
 
 
@@ -661,8 +724,16 @@ lm_spec <- lm(formula = fmla,
 
 # Print a summary to screen.
 print(summary(lm_spec))
-# All slope coefficients and standard errors match.
-# Not sure what convention Stata is using for the intercept.
+# Slope coefficients are the same: the estimates, that is.
+
+# Standard error needs some adjustment for degrees of freedom.
+summ_lm <- summary(lm_spec)
+adj_coef_table(coef_lm = summ_lm$coefficients,
+               resid_lm = summ_lm$residuals,
+               num_obs = saaq_data[, sum(num)],
+               num_rows = nrow(saaq_data),
+               num_vars = length(var_list),
+               num_FE = num_drivers)
 
 
 ################################################################################
@@ -706,7 +777,16 @@ lm_spec <- lm(formula = fmla,
 
 # Print a summary to screen.
 print(summary(lm_spec))
+# Slope coefficients are the same: the estimates, that is.
 
+# Standard error needs some adjustment for degrees of freedom.
+summ_lm <- summary(lm_spec)
+adj_coef_table(coef_lm = summ_lm$coefficients,
+               resid_lm = summ_lm$residuals,
+               num_obs = saaq_data[, sum(num)],
+               num_rows = nrow(saaq_data),
+               num_vars = length(var_list),
+               num_FE = num_drivers)
 
 
 
