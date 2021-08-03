@@ -654,9 +654,25 @@ coef_adj[, 'Pr(>|t|)'] <- 2*pt(- abs(coef_adj[, 't value']),
 
 
 # Create a function to adjust the table of
-# coefficients and standard errors.
-adj_coef_table <- function(coef_lm, resid_lm,
-                           num_obs, num_rows, num_vars, num_FE) {
+# coefficients and standard errors for the fixed effects model.
+adj_FE_coef_SE <- function(coef_orig, se_adj,
+                        num_obs, num_vars, num_FE) {
+
+  # Start with the original estimates.
+  coef_adj <- coef_orig
+  # Adjust the standard errors.
+  coef_adj[, 'Std. Error'] <- se_adj
+  coef_adj[, 't value'] <- coef_adj[, 'Estimate']/coef_adj[, 'Std. Error']
+  coef_adj[, 'Pr(>|t|)'] <- 2*pt(- abs(coef_adj[, 't value']),
+                                 df = (num_obs - (num_vars + num_FE + 1)))
+
+  return(coef_adj)
+}
+
+# Create a function that makes the adjustment between
+# weighted and unweighted estimates of the fixed effects estimator.
+adj_FE_coef_table <- function(coef_lm, resid_lm,
+                              num_obs, num_rows, num_vars, num_FE) {
 
   # s^2 estimate for fixed effects model.
   s2_true <- sum(resid_lm^2) /
@@ -667,15 +683,23 @@ adj_coef_table <- function(coef_lm, resid_lm,
     (num_rows - (num_vars + 1))
 
   # Calculate adjustment ratio for standard errors.
-  se_adj <- sqrt(s2_true)/sqrt(s2_lm)
+  se_adj_factor <- sqrt(s2_true)/sqrt(s2_lm)
 
   # Replace the standard errors and other statistics
   # to account for difference in degrees of freedom.
-  coef_adj <- coef_lm
-  coef_adj[, 'Std. Error'] <- coef_lm[, 'Std. Error']*se_adj
-  coef_adj[, 't value'] <- coef_adj[, 'Estimate']/coef_adj[, 'Std. Error']
-  coef_adj[, 'Pr(>|t|)'] <- 2*pt(- abs(coef_adj[, 't value']),
-                                 df = (num_obs - (num_vars + num_FE + 1)))
+  # coef_adj <- coef_lm
+  # coef_adj[, 'Std. Error'] <- coef_lm[, 'Std. Error']*se_adj
+  # coef_adj[, 't value'] <- coef_adj[, 'Estimate']/coef_adj[, 'Std. Error']
+  # coef_adj[, 'Pr(>|t|)'] <- 2*pt(- abs(coef_adj[, 't value']),
+  #                                df = (num_obs - (num_vars + num_FE + 1)))
+  # Use a function instead.
+  coef_adj <- adj_FE_coef_SE(coef_orig = coef_lm,
+                             se_adj = se_adj_factor*coef_lm[, 'Std. Error'],
+                             num_obs = num_obs,
+                             num_vars = num_vars,
+                             num_FE = num_FE)
+
+
 
   return(coef_adj)
 }
@@ -683,12 +707,12 @@ adj_coef_table <- function(coef_lm, resid_lm,
 
 summ_lm <- summary(lm_spec)
 
-adj_coef_table(coef_lm = summ_lm$coefficients,
-               resid_lm = summ_lm$residuals,
-               num_obs = saaq_data[, sum(num)],
-               num_rows = nrow(saaq_data),
-               num_vars = length(var_list),
-               num_FE = num_drivers)
+adj_FE_coef_table(coef_lm = summ_lm$coefficients,
+                  resid_lm = summ_lm$residuals,
+                  num_obs = saaq_data[, sum(num)],
+                  num_rows = nrow(saaq_data),
+                  num_vars = length(var_list),
+                  num_FE = num_drivers)
 
 
 
@@ -728,12 +752,13 @@ print(summary(lm_spec))
 
 # Standard error needs some adjustment for degrees of freedom.
 summ_lm <- summary(lm_spec)
-adj_coef_table(coef_lm = summ_lm$coefficients,
-               resid_lm = summ_lm$residuals,
-               num_obs = saaq_data[, sum(num)],
-               num_rows = nrow(saaq_data),
-               num_vars = length(var_list),
-               num_FE = num_drivers)
+
+adj_FE_coef_table(coef_lm = summ_lm$coefficients,
+                  resid_lm = summ_lm$residuals,
+                  num_obs = saaq_data[, sum(num)],
+                  num_rows = nrow(saaq_data),
+                  num_vars = length(var_list),
+                  num_FE = num_drivers)
 
 
 ################################################################################
@@ -781,15 +806,78 @@ print(summary(lm_spec))
 
 # Standard error needs some adjustment for degrees of freedom.
 summ_lm <- summary(lm_spec)
-adj_coef_table(coef_lm = summ_lm$coefficients,
-               resid_lm = summ_lm$residuals,
-               num_obs = saaq_data[, sum(num)],
-               num_rows = nrow(saaq_data),
-               num_vars = length(var_list),
-               num_FE = num_drivers)
+
+adj_FE_coef_table(coef_lm = summ_lm$coefficients,
+                  resid_lm = summ_lm$residuals,
+                  num_obs = saaq_data[, sum(num)],
+                  num_rows = nrow(saaq_data),
+                  num_vars = length(var_list),
+                  num_FE = num_drivers)
 
 
 
+################################################################################
+# Adjust for Cluster Robust Standard Errors
+################################################################################
+
+# Calculate a matrix of the weighted product of residuals
+# and covariates for calculation of the cluster-robust variance estimator.
+CRVE_dt <- calc_CRVE_tab(saaq_data = saaq_data, # Should pass shallow copy with pointer.
+                         weights = summ_lm$weights,
+                         resids = summ_lm$residuals,
+                         curr_pts_grp_list = curr_pts_grp_list)
+
+# summary(CRVE_dt)
+
+# Drop any omitted variables, for example, in the real data, the
+# 31-150 points group category is zero for all pre-policy days.
+# var_col_names <- var_col_names[var_col_names != 'curr_pts_31_150']
+
+
+# Calculate matrix aggregated by seq.
+var_col_names <- c(sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list)),
+                   sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list)))
+CRVE_by_seq <- CRVE_dt[, lapply(.SD, sum), by = seq, .SDcols = var_col_names]
+
+# summary(CRVE_by_seq)
+
+# Calculate the inner matrix of the CRVE sandwich estimator
+# using the weighted product of residuals and covariates.
+CRVE_meat <- calc_CRVE_meat(CRVE_by_seq = CRVE_by_seq,
+                            var_col_names = var_col_names)
+
+
+
+# Now get the bread of the sandwich from the regression model.
+# Make an adjustment to back out the standard error.
+CRVE_bread <- vcov(lm_spec, complete = FALSE)/summ_lm$sigma^2
+# This should be X-transpose-X-inverse.
+
+
+# Calculate the standard errors from the CRVE sandwich estimator.
+CRVE_SE <- calc_CRVE_FE_SE(CRVE_bread = CRVE_bread,
+                           CRVE_meat = CRVE_meat,
+                           num_ind = nrow(CRVE_by_seq), # = num_seq
+                           num_obs = sum(summ_lm$weights), # = num_sub
+                           num_vars = length(var_col_names))
+
+
+# Adjust the table of coefficients
+# for adjusted standard errors in the fixed effects model.
+coef_adj <- adj_FE_coef_SE(coef_orig = coef_lm,
+                           se_adj = CRVE_SE,
+                           num_obs = saaq_data[, sum(num)],
+                           num_vars = length(var_list),
+                           num_FE = num_drivers)
+
+
+# Compare with the original FE model without CRVE.
+# adj_FE_coef_table(coef_lm = summ_lm$coefficients,
+#                   resid_lm = summ_lm$residuals,
+#                   num_obs = saaq_data[, sum(num)],
+#                   num_rows = nrow(saaq_data),
+#                   num_vars = length(var_list),
+#                   num_FE = num_drivers)
 
 
 ################################################################################
