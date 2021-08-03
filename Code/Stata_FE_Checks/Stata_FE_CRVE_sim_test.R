@@ -883,11 +883,16 @@ CRVE_SE <- calc_CRVE_FE_SE(CRVE_bread = CRVE_bread,
 
 # Adjust the table of coefficients
 # for adjusted standard errors in the fixed effects model.
-coef_adj <- adj_FE_coef_SE(coef_orig = coef_lm,
+coef_adj <- adj_FE_coef_SE(coef_orig = summ_lm$coefficients,
                            se_adj = CRVE_SE,
-                           num_obs = saaq_data[, sum(num)],
+                           # num_obs = saaq_data[, sum(num)],
+                           num_obs = num_drivers,
                            num_vars = length(var_list),
-                           num_FE = num_drivers)
+                           # num_FE = num_drivers,
+                           num_FE = 0)
+# Notice that the degrees of freedom depend on the
+# number of clusters (drivers) and not the number of observations.
+# Thus, the number of variables does not include the fixed effects.
 
 
 # Compare with the original FE model without CRVE.
@@ -897,6 +902,7 @@ coef_adj <- adj_FE_coef_SE(coef_orig = coef_lm,
 #                   num_rows = nrow(saaq_data),
 #                   num_vars = length(var_list),
 #                   num_FE = num_drivers)
+# Shown above.
 
 
 ################################################################################
