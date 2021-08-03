@@ -119,26 +119,44 @@ calc_CRVE_tab <- function(saaq_data, weights, resids, curr_pts_grp_list) {
 
   # Calculate columns for cluster-robust variance estimate,
   # clustering on the driver.
+  # Number of columns is 2*length(curr_pts_grp_list)
+  # because the zero categories are dropped and the
+  # intercept and policy indicators are included.
   CRVE_dt <- data.table(matrix(NA,
                                nrow = length(weights),
                                ncol = 2*length(curr_pts_grp_list)))
-  var_col_names <- c(sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list)),
-                     sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list)))
+  # First curr_pts_grp category is dropped.
+  curr_pts_grp_est_list <- curr_pts_grp_list[2:length(curr_pts_grp_list)]
+  var_col_names <- c(sprintf('curr_pts_%s',
+                             gsub('-', '_', curr_pts_grp_est_list)),
+                     sprintf('curr_pts_%s_policy',
+                             gsub('-', '_', curr_pts_grp_est_list)))
+  # Add columns for intercept and policy indicator.
+  var_col_names <- c('(Intercept)', 'dev_policy', var_col_names)
+
   colnames(CRVE_dt) <- var_col_names
   # Add indicator for individuals.
   CRVE_dt[, 'seq'] <- saaq_data[sub_sel_obsn == TRUE, seq]
 
   # Calculate columns of weighted product of residuals and covariates.
-  for (curr_pts_level in curr_pts_grp_list) {
+  # Intercept:
+  CRVE_dt[, '(Intercept)'] <- sqrt(weights) * resids
+  # Policy indicator:
+  CRVE_dt[, 'dev_policy'] <- sqrt(weights) * resids *
+    saaq_data[sub_sel_obsn == TRUE, 'dev_policy', with = FALSE]
+
+
+  # Calculate columns of weighted product of residuals and covariates.
+  for (curr_pts_level in curr_pts_grp_est_list) {
 
     print(sprintf('Calculating CRVE column for curr_pts_grp %s', curr_pts_level))
 
     col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
-    CRVE_dt[, col_var_name] <- weights * resids *
+    CRVE_dt[, col_var_name] <- sqrt(weights) * resids *
       saaq_data[sub_sel_obsn == TRUE, col_var_name, with = FALSE]
 
     col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
-    CRVE_dt[, col_var_name] <- weights * resids *
+    CRVE_dt[, col_var_name] <- sqrt(weights) * resids *
       saaq_data[sub_sel_obsn == TRUE, col_var_name, with = FALSE]
 
   }

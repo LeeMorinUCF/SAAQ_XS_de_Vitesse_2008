@@ -769,7 +769,8 @@ adj_FE_coef_table(coef_lm = summ_lm$coefficients,
 ################################################################################
 
 
-var_list_0 <- c('policy')
+# var_list_0 <- c('policy')
+var_list_0 <- c('dev_policy')
 
 # Set the list of variables by points category.
 # Assumes constant omitted:
@@ -827,6 +828,7 @@ CRVE_dt <- calc_CRVE_tab(saaq_data = saaq_data, # Should pass shallow copy with 
                          resids = summ_lm$residuals,
                          curr_pts_grp_list = curr_pts_grp_list)
 
+# colnames(CRVE_dt)
 # summary(CRVE_dt)
 
 # Drop any omitted variables, for example, in the real data, the
@@ -835,8 +837,17 @@ CRVE_dt <- calc_CRVE_tab(saaq_data = saaq_data, # Should pass shallow copy with 
 
 
 # Calculate matrix aggregated by seq.
-var_col_names <- c(sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list)),
-                   sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list)))
+# First curr_pts_grp category is dropped.
+curr_pts_grp_est_list <- curr_pts_grp_list[2:length(curr_pts_grp_list)]
+var_col_names <- c(sprintf('curr_pts_%s',
+                           gsub('-', '_', curr_pts_grp_est_list)),
+                   sprintf('curr_pts_%s_policy',
+                           gsub('-', '_', curr_pts_grp_est_list)))
+# Add columns for intercept and policy indicator.
+var_col_names <- c('(Intercept)', 'dev_policy', var_col_names)
+# Verify that columns are aligned.
+var_col_names == colnames(CRVE_dt)[1:28]
+# Now aggregate by individual.
 CRVE_by_seq <- CRVE_dt[, lapply(.SD, sum), by = seq, .SDcols = var_col_names]
 
 # summary(CRVE_by_seq)
@@ -846,12 +857,20 @@ CRVE_by_seq <- CRVE_dt[, lapply(.SD, sum), by = seq, .SDcols = var_col_names]
 CRVE_meat <- calc_CRVE_meat(CRVE_by_seq = CRVE_by_seq,
                             var_col_names = var_col_names)
 
+# Verify that columns are aligned.
+var_col_names == colnames(CRVE_meat)
 
 
 # Now get the bread of the sandwich from the regression model.
 # Make an adjustment to back out the standard error.
 CRVE_bread <- vcov(lm_spec, complete = FALSE)/summ_lm$sigma^2
 # This should be X-transpose-X-inverse.
+# And the order of columns must be the same.
+colnames(CRVE_bread)
+# Verify that columns are aligned.
+var_col_names == colnames(CRVE_bread)
+colnames(CRVE_bread) == colnames(CRVE_meat)
+
 
 
 # Calculate the standard errors from the CRVE sandwich estimator.
