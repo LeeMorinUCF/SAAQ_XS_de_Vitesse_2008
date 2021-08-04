@@ -7,15 +7,20 @@ It calculates the estimates with a dataset with weight one on each observation
 and estimates the model in Stata. 
 
 
-Next, the data are aggregated, so that each distinct observation has only one line
+Next, the data are aggregated in R, so that each distinct observation has only one line
 in the dataset and the observations are weighted by frequency. 
 For example, when a driver with three demerit points avoids getting a ticket
 for 200 consecutive days, the observation with a zero event appears only once
 in the dataset and has a fequency weight of 200.
+In the actual dataset, this functionality reduces the size of the dataset
+by a factor of 1000. 
 
 
 ## Estimates from the ```xtreg ... , fe vce(cluster seq)``` Command in Stata
 
+These are the estimates using the full, unweighted dataset in Stata
+(Stata does not allow for frequency weights that vary across individuals
+in a panel):
 
 ```
 . xtreg events_int i.curr_pts_grp_cat##policy_int, fe vce(cluster seq)
@@ -80,6 +85,7 @@ curr_pts_grp_cat#policy_int |
 
 ## Estimates from the ```FE_CRVE_lib.R``` Library in R
 
+Compare these to the estimates using the frequency-weighted dataset in R.
 
 ```
                             Estimate   Std. Error     t value      Pr(>|t|)
@@ -113,4 +119,7 @@ curr_pts_21_30_policy   2.756438e-02 3.225024e-04   85.470297  0.000000e+00
 curr_pts_31_150_policy  2.785447e-02 6.718762e-04   41.457740 1.510519e-305
 ```
 
-
+The estimates are the same using both approaches, which
+validates the estimation library for the fixed effects model 
+and cluster-robust variance estimator
+with frequency-weighted observations. 
