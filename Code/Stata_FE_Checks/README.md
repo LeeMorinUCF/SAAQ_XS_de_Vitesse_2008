@@ -3,24 +3,36 @@
 This is a comparison of the estimates of the fixed effects model
 with cluster-robust standard errors. 
 
-It calculates the estimates with a dataset with weight one on each observation
+First, the estimates are calculated with a dataset with weight one on each observation
 and estimates the model in Stata. 
+This represents the full dataset that would have, in a balanced panel, 
+a number of observations equal to the number of drivers times the numbers of days. 
 
 
 Next, the data are aggregated in R, so that each distinct observation has only one line
 in the dataset and the observations are weighted by frequency. 
 For example, when a driver with three demerit points avoids getting a ticket
-for 200 consecutive days, the observation with a zero event appears only once
-in the dataset and has a fequency weight of 200.
-In the actual dataset, this functionality reduces the size of the dataset
-by a factor of 1000. 
+for 200 consecutive days, the observation with a zero event appears in only one row
+of the dataset and has a fequency weight of 200. 
+In a balanced panel, the weights would add up to the number of drivers times the numbers of days,
+but the dataset would have fewer rows because many of the non-event observations
+would be repeated many times. 
+In the actual dataset, this functionality reduces the size of the full dataset
+by a factor of 1,000 and makes estimation computationally feasible. 
 
 
 ## Estimates from the ```xtreg ... , fe vce(cluster seq)``` Command in Stata
 
-These are the estimates using the full, unweighted dataset in Stata
-(Stata does not allow for frequency weights that vary across individuals
-in a panel):
+Stata does not allow for frequency weights that vary across the observations for 
+individuals in a panel, as they would when a driver spends a certain number of days
+without getting a ticket and one day with a ticket. 
+This limitation precludes the use of frequency-weighted observations in the panel. 
+However, Stata can be used for a validation exercise on a small similated dataset
+with each observation listed separately. 
+In this example, there are 3,500 drivers observed over the 1,461 days between
+April 1, 2006 ans March 31, 2010, for a sample size of 5,113,500. 
+These are the fixed effects estimates using the full, unweighted dataset in Stata, 
+with a cluster-robust variance estimator:
 
 ```
 . xtreg events_int i.curr_pts_grp_cat##policy_int, fe vce(cluster seq)
@@ -86,6 +98,15 @@ curr_pts_grp_cat#policy_int |
 ## Estimates from the ```FE_CRVE_lib.R``` Library in R
 
 Compare these to the estimates using the frequency-weighted dataset in R.
+The data are aggregated so that distinct observations are listed on only one row, 
+with a corresponding frequency weight for each distinct observation. 
+In this example, this compression method reduces the dataset to 93,790 rows.
+In the actual dataset, tickets occur more rarely and the compression ratio is much higher
+but the parameters were chosen so that the coefficients would be reasonably estimated 
+with a smaller sample of millions of observations in the simulated dataset, 
+instead of billions of observations in the actual dataset. 
+These are the fixed effects estimates using the compressed, weighted dataset in R, 
+with a cluster-robust variance estimator:
 
 ```
                             Estimate   Std. Error     t value      Pr(>|t|)
@@ -123,3 +144,6 @@ The estimates are the same using both approaches, which
 validates the estimation library for the fixed effects model 
 and cluster-robust variance estimator
 with frequency-weighted observations. 
+This is the library that was used to estimate the results in Tables 3 and 4, 
+and in Figures 3 and 4. 
+
