@@ -1,4 +1,4 @@
-# Validation
+# Validation of Fixed Effects and Cluster-Robust Variance Estimation
 
 This is a comparison of the estimates of the fixed effects model
 with cluster-robust standard errors. 
