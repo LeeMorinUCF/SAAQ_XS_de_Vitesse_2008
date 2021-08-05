@@ -4,7 +4,7 @@ This is a comparison of the estimates of the fixed effects model
 with cluster-robust standard errors. 
 
 First, the estimates are calculated with a dataset with weight one on each observation
-and estimates the model in Stata. 
+and the model is estimated in Stata. 
 This represents the full dataset that would have, in a balanced panel, 
 a number of observations equal to the number of drivers times the numbers of days. 
 
@@ -27,10 +27,10 @@ Stata does not allow for frequency weights that vary across the observations for
 individuals in a panel, as they would when a driver spends a certain number of days
 without getting a ticket and one day with a ticket. 
 This limitation precludes the use of frequency-weighted observations in the panel. 
-However, Stata can be used for a validation exercise on a small similated dataset
+However, Stata can be used for a validation exercise on a small simulated dataset
 with each observation listed separately. 
 In this example, there are 3,500 drivers observed over the 1,461 days between
-April 1, 2006 ans March 31, 2010, for a sample size of 5,113,500. 
+April 1, 2006 and March 31, 2010, for a sample size of 5,113,500. 
 These are the fixed effects estimates using the full, unweighted dataset in Stata, 
 with a cluster-robust variance estimator:
 
@@ -101,8 +101,8 @@ Compare these to the estimates using the frequency-weighted dataset in R.
 The data are aggregated so that distinct observations are listed on only one row, 
 with a corresponding frequency weight for each distinct observation. 
 In this example, this compression method reduces the dataset to 93,790 rows.
-In the actual dataset, tickets occur more rarely and the compression ratio is much higher
-but the parameters were chosen so that the coefficients would be reasonably estimated 
+In the actual dataset, tickets occur more rarely and the compression ratio is much higher. 
+in this comparison, the parameters were chosen so that the coefficients would be reasonably estimated 
 with a smaller sample of millions of observations in the simulated dataset, 
 instead of billions of observations in the actual dataset. 
 These are the fixed effects estimates using the compressed, weighted dataset in R, 
@@ -140,10 +140,10 @@ curr_pts_21_30_policy   2.756438e-02 3.225024e-04   85.470297  0.000000e+00
 curr_pts_31_150_policy  2.785447e-02 6.718762e-04   41.457740 1.510519e-305
 ```
 
-The estimates are the same using both approaches, which
-validates the estimation library for the fixed effects model 
-and cluster-robust variance estimator
+The estimates are the same using either approach, and this
+validates the estimation library ```FE_CRVE_lib.R``` for the fixed effects model 
+and the cluster-robust variance estimator
 with frequency-weighted observations. 
 This is the library that was used to estimate the results in Tables 3 and 4, 
-and in Figures 3 and 4. 
+and in Figures 3 and 4 in the manuscript. 
 
