@@ -440,7 +440,7 @@ print(summary(lm_spec))
 # Standard error needs some adjustment for degrees of freedom.
 summ_lm <- summary(lm_spec)
 
-# This is the table of estimates with standard standard errors.
+# This is the table of estimates with "standard" standard errors.
 adj_FE_coef_table(coef_lm = summ_lm$coefficients,
                   resid_lm = summ_lm$residuals,
                   num_obs = saaq_data[, sum(num)],

@@ -80,7 +80,7 @@ adj_FE_coef_table <- function(coef_lm, resid_lm,
     (num_obs - (num_vars + num_FE + 1))
 
   # s^2 estimate for the weighted model.
-  s2_lm <- sum(summ_lm$residuals^2) /
+  s2_lm <- sum(resid_lm^2) /
     (num_rows - (num_vars + 1))
 
   # Calculate adjustment ratio for standard errors.

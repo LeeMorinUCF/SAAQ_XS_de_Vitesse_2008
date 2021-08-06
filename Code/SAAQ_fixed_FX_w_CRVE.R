@@ -9,6 +9,9 @@
 # This requires a dataset with the counts for point balances for each driver
 # across the individual driving histories.
 #
+# This version also estimates cluster-robust standard errors,
+# clustered on the driver.
+#
 #
 #
 # Lee Morin, Ph.D.
@@ -17,7 +20,7 @@
 # College of Business
 # University of Central Florida
 #
-# June 25, 2021
+# August 6, 2021
 #
 ################################################################################
 #
@@ -42,6 +45,7 @@ library(xtable)
 # Load scales library because it has a function
 # to display large numbers in comma format.
 library(scales)
+
 
 
 ################################################################################
@@ -89,6 +93,15 @@ file_tag_list <- c('all_pts', 'high_pts')
 
 # Specify subsamples for either male, female, or all drivers
 sex_sel_list <- c('A', 'M', 'F')
+
+
+################################################################################
+# Load Libraries
+################################################################################
+
+
+# Load library for estimating FE and CRVE estimators with frequency-weighted data.
+source('Lib/FE_CRVE_lib.R')
 
 
 ################################################################################
@@ -172,6 +185,10 @@ saaq_train[, sum(as.numeric(num)), by = points][order(points)]
 # # Load Testing Dataset
 # #-------------------------------------------------------------------------------
 #
+# # Testing dataset not needed for fixed effects model.
+# # Fixed effects not estimated for drivers in the testing sample.
+# # Besides, full model is estimated and no model selection is required.
+#
 # # Dataset for out-of-sample model testing.
 # in_path_file_name <- sprintf('%s/%s', data_in_path, test_file_name)
 # saaq_test <- fread(in_path_file_name)
@@ -223,10 +240,23 @@ saaq_data <- saaq_train
 
 rm(saaq_train)
 
+# Inspect data for duplicates.
+# Ensure that aggregation is correct.
+saaq_data
+saaq_data[num > 1, ]
+saaq_data[num > 1 & seq > 0, ]
+saaq_data[num > 1 & seq > 0 & points > 0, ]
+# Individual tickets are aggregated but repeated lines should be removed.
+
+# Drop duplicates.
+nrow(unique(saaq_data))
+saaq_data <- unique(saaq_data)
+
+
 
 # saaq_data[date >= sample_beg & date <= sample_end,
 #           sum(as.numeric(num)), by = points][order(points)]
-saaq_data[, sum(as.numeric(num)), by = points][order(points)]
+# saaq_data[, sum(as.numeric(num)), by = points][order(points)]
 
 
 ################################################################################
@@ -456,21 +486,33 @@ for (file_tag in file_tag_list) {
     # write.csv(saaq_data[sub_sel_obsn == TRUE, check_var_names, with = FALSE],
     #           file = out_file_name, row.names = FALSE)
 
+    #--------------------------------------------------------------------------------
+    # Estimate fixed effects regression
+    #--------------------------------------------------------------------------------
+
+
+    # First variable is the policy indicator,
+    # projected off the fixed effects indicators.
+    var_list_0 <- c('dev_policy')
 
     # Set the list of variables by points category.
-    # Assumes constant omitted:
-    var_list_1 <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list))
-    var_list_2 <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list))
-    # Assumes constant included:
-    # var_list_1 <- var_list_1[2:length(var_list_1)]
-    # var_list_2 <- var_list_2[2:length(var_list_2)]
-    # var_list <- c(var_list_1, 'avg_policy', var_list_2)
-    var_list <- c(var_list_1, var_list_2)
+    # Assumes first points category omitted:
+    var_list_1 <- sprintf('curr_pts_%s',
+                          gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+    var_list_2 <- sprintf('curr_pts_%s_policy',
+                          gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+    var_list <- c(var_list_0, var_list_1, var_list_2)
 
-    # Eliminate the constant term.
-    fmla_str <- sprintf('dev_events ~ 0 + %s',
+    # # Eliminate the constant term.
+    # fmla_str <- sprintf('dev_events ~ 0 + %s',
+    #                     paste(var_list, collapse = " + "))
+    # fmla <- as.formula(fmla_str)
+
+    # Keep the constant to match Stata.
+    fmla_str <- sprintf('dev_events ~ %s',
                         paste(var_list, collapse = " + "))
     fmla <- as.formula(fmla_str)
+
 
     # Fit regression model on training sample for male drivers.
     lm_spec <- lm(formula = fmla,
@@ -484,6 +526,7 @@ for (file_tag in file_tag_list) {
     # Store the item for output.
     summ_sub <- summary(lm_spec)
 
+
     # attributes(summ_sub)
 
     # summ_sub$coefficients
@@ -496,71 +539,123 @@ for (file_tag in file_tag_list) {
     SSR_sub <- sum(summ_sub$weights*summ_sub$residuals^2)
     num_sub <- sum(summ_sub$weights)
 
-    # Calculate columns for cluster-robust variance estimate,
-    # clustering on the driver.
-    CRVE_dt <- data.table(matrix(NA,
-                                 nrow = length(summ_sub$weights),
-                                 ncol = 2*length(curr_pts_grp_list)))
-    var_col_names <- c(sprintf('curr_pts_%s', gsub('-', '_', curr_pts_grp_list)),
-                       sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_grp_list)))
-    colnames(CRVE_dt) <- var_col_names
-    for (curr_pts_level in curr_pts_grp_list) {
 
-      print(sprintf('Calculating CRVE column for curr_pts_grp %s', curr_pts_level))
+    # Calculate other parameters for calculation of statistics.
+    num_rows <- saaq_data[, sum(sub_sel_obsn)]
+    num_drivers <- length(unique(saaq_data[sub_sel_obsn == TRUE, seq]))
+    num_obs <- saaq_data[sub_sel_obsn == TRUE, sum(num)]
 
-      col_var_name <- sprintf('curr_pts_%s', gsub('-', '_', curr_pts_level))
-      CRVE_dt[, col_var_name] <- summ_sub$weights *
-        summ_sub$residuals * saaq_data[sub_sel_obsn == TRUE, col_var_name, with = FALSE]
 
-      col_var_name <- sprintf('curr_pts_%s_policy', gsub('-', '_', curr_pts_level))
-      CRVE_dt[, col_var_name] <- summ_sub$weights *
-        summ_sub$residuals * saaq_data[sub_sel_obsn == TRUE, col_var_name, with = FALSE]
+    # Standard error needs some adjustment for degrees of freedom
+    # for fixed effects model.
+    # This is the table of estimates with "standard" standard errors.
+    summ_sub_coef_FE <- adj_FE_coef_table(coef_lm = summ_sub$coefficients,
+                                          resid_lm = summ_sub$residuals,
+                                          # num_obs = saaq_data[, sum(num)],
+                                          num_obs = num_obs,
+                                          # num_rows = nrow(saaq_data),
+                                          num_rows = num_rows,
+                                          num_vars = length(var_list),
+                                          num_FE = num_drivers)
+
+
+
+
+    #--------------------------------------------------------------------------------
+    # Calculate Cluster-Robust Standard Errors
+    #--------------------------------------------------------------------------------
+
+    # Calculate a matrix of the weighted product of residuals
+    # and covariates for calculation of the cluster-robust variance estimator.
+    CRVE_dt <- calc_CRVE_tab(saaq_data = saaq_data, # Should pass shallow copy with pointer.
+                             weights = summ_sub$weights,
+                             resids = summ_sub$residuals,
+                             curr_pts_grp_list = curr_pts_grp_list)
+    # Note that calc_CRVE_tab assumes sample selection in variable sub_sel_obsn.
+    # More efficient since it avoids making a deep copy.
+
+
+    # Drop any omitted variables. For example, in the real data, the
+    # 31-150 points group category may be zero for all pre-policy days.
+    # var_col_names <- var_col_names[var_col_names != 'curr_pts_31_150']
+    var_list
+    est_var_list <- rownames(summ_sub$coefficients)[!is.na(summ_sub$coefficients[, 'Estimate'])]
+    var_list == est_var_list[2:length(est_var_list)]
+    var_match_diffs <- sum(var_list != est_var_list[2:length(est_var_list)])
+    # If no differences, no adjustment is necessary.
+    if (var_match_diffs > 0) {
+      print('Warning! Not all variables estimated.')
+      # Insert logic to adjust variable list.
+    } else {
+      # Complete set of variables estimated (no perfect collinearity).
+      # First curr_pts_grp category is dropped.
+      curr_pts_grp_est_list <- curr_pts_grp_list[2:length(curr_pts_grp_list)]
+      var_col_names <- c(sprintf('curr_pts_%s',
+                                 gsub('-', '_', curr_pts_grp_est_list)),
+                         sprintf('curr_pts_%s_policy',
+                                 gsub('-', '_', curr_pts_grp_est_list)))
+      # Add columns for intercept and policy indicator.
+      var_col_names <- c('(Intercept)', 'dev_policy', var_col_names)
+      # Verify that columns are aligned.
+      var_col_names == colnames(CRVE_dt)[1:28]
 
     }
-    # summary(CRVE_dt)
-    CRVE_dt[, 'seq'] <- saaq_data[sub_sel_obsn == TRUE, seq]
-    # Then sum over each individual.
 
-    # Drop the omitted variable, which is zero for all pre-policy days.
-    var_col_names <- var_col_names[var_col_names != 'curr_pts_31_150']
 
     # Calculate matrix aggregated by seq.
+    # Aggregate by individual.
     CRVE_by_seq <- CRVE_dt[, lapply(.SD, sum), by = seq, .SDcols = var_col_names]
 
-    # Now calculate a covariance matrix from this.
-    CRVE_meat <- matrix(NA, nrow = length(var_col_names), ncol = length(var_col_names))
-    colnames(CRVE_meat) <- var_col_names
-    rownames(CRVE_meat) <- var_col_names
-    for (var_num_i in 1:length(var_col_names)) {
-      for (var_num_j in 1:var_num_i) {
+    # summary(CRVE_by_seq)
 
-        var_col_i <- var_col_names[var_num_i]
-        var_col_j <- var_col_names[var_num_j]
+    # Calculate the inner matrix of the CRVE sandwich estimator
+    # using the weighted product of residuals and covariates.
+    CRVE_meat <- calc_CRVE_meat(CRVE_by_seq = CRVE_by_seq,
+                                var_col_names = var_col_names)
 
-        CRVE_meat[var_col_i, var_col_j] <- sum(CRVE_by_seq[, var_col_i, with = FALSE] *
-                                                 CRVE_by_seq[, var_col_j, with = FALSE])
+    # Verify that columns are aligned.
+    var_col_names == colnames(CRVE_meat)
 
-        CRVE_meat[var_col_j, var_col_i] <- CRVE_meat[var_col_i, var_col_j]
-      }
-    }
 
     # Now get the bread of the sandwich from the regression model.
     # Make an adjustment to back out the standard error.
     CRVE_bread <- vcov(lm_spec, complete = FALSE)/summ_sub$sigma^2
     # This should be X-transpose-X-inverse.
+    # And the order of columns must be the same.
+    colnames(CRVE_bread)
+    # Verify that columns are aligned.
+    var_col_names == colnames(CRVE_bread)
+    colnames(CRVE_bread) == colnames(CRVE_meat)
 
-    # Now make a sandwich.
-    CRVE <- CRVE_bread %*% CRVE_meat %*% CRVE_bread
-
-    # Take the standard errors, multiplied by a degrees of freedom correction.
-    num_seq <- nrow(CRVE_by_seq)
-    CRVE <- CRVE*(num_seq/(num_seq-1))*(num_sub - 1)/(num_sub - length(var_col_names))
-
-    # Take the standard errors, as usual.
-    CRVE_SE <- sqrt(diag(CRVE))
+    # Calculate the standard errors from the CRVE sandwich estimator.
+    CRVE_SE <- calc_CRVE_FE_SE(CRVE_bread = CRVE_bread,
+                               CRVE_meat = CRVE_meat,
+                               num_ind = nrow(CRVE_by_seq), # = num_seq
+                               num_obs = sum(summ_sub$weights), # = num_sub
+                               num_vars = length(var_col_names))
 
     # Compare with the standard standard errors.
     # CRVE_SE/summ_sub$coefficients[, c('Std. Error')]
+    CRVE_SE/summ_sub_coef[, c('Std. Error')]
+
+    # Adjust the table of coefficients
+    # for adjusted standard errors in the fixed effects model.
+    summ_sub_coef_FE_CRVE <- adj_FE_coef_SE(coef_orig = summ_sub$coefficients,
+                                            se_adj = CRVE_SE,
+                                            # num_obs = saaq_data[, sum(num)],
+                                            num_obs = num_drivers,
+                                            num_vars = length(var_list),
+                                            # num_FE = num_drivers,
+                                            num_FE = 0)
+    # Notice that the degrees of freedom depend on the
+    # number of clusters (drivers) and not the number of observations.
+    # Thus, the number of variables does not include the fixed effects.
+
+
+
+    #--------------------------------------------------------------------------------
+    # Calculate and Store Postestimation Statistics
+    #--------------------------------------------------------------------------------
 
 
     # # Store residuals.
@@ -624,6 +719,9 @@ for (file_tag in file_tag_list) {
     #
     # # saaq_data[sub_sel_obsn == TRUE, sex]
 
+    #--------------------------------------------------------------------------------
+    # Store results for Output to Documents
+    #--------------------------------------------------------------------------------
 
 
     # Drop large elements to focus on estimates.
@@ -635,14 +733,16 @@ for (file_tag in file_tag_list) {
     summ_sub$num <- num_sub
 
     # Count number of drivers in the sample.
-    summ_sub$num_seq <- length(unique(saaq_data[sub_sel_obsn == TRUE, seq]))
-
+    # summ_sub$num_seq <- length(unique(saaq_data[sub_sel_obsn == TRUE, seq]))
+    summ_sub$num_seq <- num_drivers
 
 
 
     # Append estimates to the matrix of coefficients.
+    # FE_estimates <- cbind(FE_estimates,
+    #                       summ_sub$coefficients[, c('Estimate', 'Std. Error')])
     FE_estimates <- cbind(FE_estimates,
-                          summ_sub$coefficients[, c('Estimate', 'Std. Error')])
+                          summ_sub_coef[, c('Estimate', 'Std. Error')])
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('Est_%s', sex_sel),
                                           sprintf('SE_%s', sex_sel))
