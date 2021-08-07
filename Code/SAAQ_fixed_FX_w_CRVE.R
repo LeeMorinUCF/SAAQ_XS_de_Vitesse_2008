@@ -513,12 +513,28 @@ for (file_tag in file_tag_list) {
                         paste(var_list, collapse = " + "))
     fmla <- as.formula(fmla_str)
 
+    # Remove the previous estimates from memory to avoid confusion.
+    rm(lm_spec)
+    rm(summ_sub)
 
     # Fit regression model on training sample for male drivers.
     lm_spec <- lm(formula = fmla,
                   data = saaq_data[sub_sel_obsn == TRUE, ],
                   weights = num,
                   model = FALSE) #, x = FALSE, y = FALSE, qr = FALSE)
+
+    # Watch out for error of the form:
+    #
+    # Check memory limit:
+    # memory.limit()
+    # [1] 16261 # The default.
+    # Increase limit:
+    # memory.limit(size = 20000) # Good enough for 'M' and 'all_pts'.
+    # [1] 20000
+    # Increase limit again:
+    # memory.limit(size = 24000) # Good enough for 'A' and 'all_pts' (largest sample).
+    # [1] 24000
+
 
     # Print a summary to screen.
     print(summary(lm_spec))
@@ -586,6 +602,7 @@ for (file_tag in file_tag_list) {
     if (var_match_diffs > 0) {
       print('Warning! Not all variables estimated.')
       # Insert logic to adjust variable list.
+      # ...
     } else {
       # Complete set of variables estimated (no perfect collinearity).
       # First curr_pts_grp category is dropped.
@@ -742,14 +759,16 @@ for (file_tag in file_tag_list) {
     # FE_estimates <- cbind(FE_estimates,
     #                       summ_sub$coefficients[, c('Estimate', 'Std. Error')])
     FE_estimates <- cbind(FE_estimates,
-                          summ_sub_coef[, c('Estimate', 'Std. Error')])
+                          summ_sub_coef_FE[, c('Estimate', 'Std. Error')])
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('Est_%s', sex_sel),
                                           sprintf('SE_%s', sex_sel))
 
 
     # Create a second version with CRVE.
-    FE_estimates <- cbind(FE_estimates, CRVE_SE)
+    # FE_estimates <- cbind(FE_estimates, CRVE_SE)
+    # colnames(FE_estimates)[ncol(FE_estimates)] <- c(sprintf('SE_CRVE_%s', sex_sel))
+    FE_estimates <- cbind(FE_estimates, summ_sub_coef_FE_CRVE[, c('Estimate', 'Std. Error')])
     colnames(FE_estimates)[ncol(FE_estimates)] <- c(sprintf('SE_CRVE_%s', sex_sel))
 
 
@@ -967,21 +986,26 @@ for (file_tag in file_tag_list) {
 
 
   # Plot levels of tickets before policy change.
-  var_nums <- 1:13
+  # var_nums <- 1:13
+  var_nums <- 1:14
   n_vars <- length(var_nums)
+
   fig_filename <- sprintf('%s/FFX_reg_points_grp_%s.pdf', fig_dir, file_tag)
   pdf(fig_filename)
+
   plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'black', lwd = 3,
        ylim = c(-0.02, 0.02))
   lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
+
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
 
   # Female drivers in grey.
   grey_F <- gray.colors(n = 1, start = 0.6, end = 0.6)
   lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
+
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
   # All drivers in red (not for publication).
   # lines(1:n_vars, FE_estimates[var_nums, 'Est_A'], col = 'red', lwd = 3)
@@ -990,10 +1014,14 @@ for (file_tag in file_tag_list) {
   # Similar to the numbers for males.
 
   # Compare CI with CRVE.
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'blue', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
 
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'),
@@ -1010,8 +1038,10 @@ for (file_tag in file_tag_list) {
 
 
   # Plot levels of tickets after policy change.
-  n_vars_L <- 14
-  n_vars_U <- 27
+  # n_vars_L <- 14
+  # n_vars_U <- 27
+  n_vars_L <- 16
+  n_vars_U <- 28
   var_nums <- n_vars_L:n_vars_U
   n_vars <- length(var_nums)
 
@@ -1024,8 +1054,10 @@ for (file_tag in file_tag_list) {
 
   # fig_filename <- sprintf('%s/FFX_reg_policy_points_grp.eps', fig_dir)
   # postscript(fig_filename)
+
   fig_filename <- sprintf('%s/FFX_reg_policy_points_grp_%s.pdf', fig_dir, file_tag)
   pdf(fig_filename)
+
   plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'],
        xlab = 'Demerit Point Category',
        ylab = 'Policy Effect',
@@ -1035,12 +1067,13 @@ for (file_tag in file_tag_list) {
        cex.axis = 1.5)
   axis(1, at = 1:n_vars, labels = curr_pts_labels, cex = 0.5)
   lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
+
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
 
   lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
   # # All drivers in red (not for publication).
   # lines(1:n_vars, FE_estimates[var_nums, 'Est_A'], col = 'red', lwd = 3)
@@ -1050,10 +1083,14 @@ for (file_tag in file_tag_list) {
 
 
   # Compare CI with CRVE.
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'blue', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
+  # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'),
          col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
@@ -1205,7 +1242,7 @@ for (file_tag in file_tag_list) {
     caption <- 'Fixed effects regression models, with CRVE (drivers with high demerit-point balances)'
   }
   description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.',
-                   'Samples are drawn by randomly selecting seventy per cent of the drivers.',
+                   'Samples are drawn by randomly selecting seventy percent of the drivers.',
                    'Standard errors were calculated using the cluster-robust covariance matrix estimator,',
                    'clustering on the individual driver.')
   label <- sprintf('tab:FE_regs_CRVE_%s', file_tag)
