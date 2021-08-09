@@ -193,7 +193,7 @@ higher demerit point balances, and an especially strong effect on drivers with m
 \begin{figure}
 \centering
 \includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp_all_pts.pdf}
-\caption{Policy change and demerit points group interactions}
+\caption{Policy change and demerit points group interactions (all drivers)}
 %Coefficients on the interaction term between the change in the policy 
 %by the current demerit points category of each driver.
 %Estimates were calculated by fitting a fixed effects regression model, 
@@ -214,17 +214,28 @@ higher demerit point balances, and an especially strong effect on drivers with m
 
 
 
-\input{../Tables/FE_regs_high_pts}
-
+\input{../Tables/FE_regs_CRVE_high_pts}
 
 \input{../Text/FE_regs_F_stat_high_pts}
+
+
+
+
+To compare the difference in statistical significance with without the cluster-robust standard error estimates, 
+refer to the estimates in Table \ref{tab:FE_regs_high_pts}. 
+There is slight variation in the magnitude of the standard errors, 
+particularly for the demerit-point categories of drivers who tend to get tickets. 
+The difference in standard errors only marginally affect the magnitude of the $t$-statistics, 
+which are well over the critical values at conventional levels of significance. 
+
+\input{../Tables/FE_regs_high_pts}
 
 
 
 \begin{figure}
 \centering
 \includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp_high_pts.pdf}
-\caption{Policy change and demerit points group interactions}
+\caption{Policy change and demerit points group interactions (drivers with high demerit points)}
 %Coefficients on the interaction term between the change in the policy 
 %by the current demerit points category of each driver.
 %Estimates were calculated by fitting a fixed effects regression model, 

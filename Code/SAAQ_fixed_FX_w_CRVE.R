@@ -444,12 +444,12 @@ for (file_tag in file_tag_list) {
   # Initialize a matrix of coefficients.
   FE_estimates <- NULL
 
-  # Initialize matrix of relevant elements of the covariance matrices.
-  FE_CRVE_cov <- data.frame(matrix(nrow = length(var_list) + 1, ncol = 6))
-  rownames(FE_CRVE_cov) <- c('(Intercept)', var_list)
-  colnames(FE_CRVE_cov) <- sprintf('%s_%s',
-                                   rep(c('A', 'M', 'F'), each = 2),
-                                   rep(c('int', 'policy'), 3))
+  # # Initialize matrix of relevant elements of the covariance matrices.
+  # FE_CRVE_cov <- data.frame(matrix(nrow = length(var_list) + 1, ncol = 6))
+  # rownames(FE_CRVE_cov) <- c('(Intercept)', var_list)
+  # colnames(FE_CRVE_cov) <- sprintf('%s_%s',
+  #                                  rep(c('A', 'M', 'F'), each = 2),
+  #                                  rep(c('int', 'policy'), 3))
 
   #-------------------------------------------------------------------------------
   # Select data for sample of driver type.
@@ -563,6 +563,46 @@ for (file_tag in file_tag_list) {
     # Store the item for output.
     summ_sub <- summary(lm_spec)
 
+    # # Validate estimates against a different calculation.
+    # # Sometimes the outer product of the design matrix is ill-conditioned.
+    # lm_cov <- vcov(lm_spec, complete = FALSE)
+    # X_T_X_inv <- lm_cov/summ_sub$sigma^2
+    # # Take the product of the right-hannd side
+    # # with a loop, which takes longer but saves memory.
+    # # X_T_y <- matrix(nrow = nrow(lm_cov), ncol = 1)
+    # # Or just calculate it directly.
+    # X_mat <- as.matrix(cbind(rep(1, saaq_data[, sum(sub_sel_obsn)]),
+    #                          saaq_data[sub_sel_obsn == TRUE, var_list, with = FALSE]))
+    # y_wtd <- as.matrix(saaq_data[sub_sel_obsn == TRUE, dev_events] *
+    #                      saaq_data[sub_sel_obsn == TRUE, num])
+    # X_T_y <- t(X_mat) %*% y_wtd
+    # beta_hat_2 <- X_T_X_inv %*% X_T_y
+    #
+    # # Compare with lm() estimates.
+    # cbind(summ_sub$coefficients[, 'Estimate'], beta_hat_2)
+    # sum(abs(summ_sub$coefficients[, 'Estimate'] - beta_hat_2)^2)
+    #
+    # # Calculate residuals to validate calculations.
+    # resid_check_1 <- saaq_data[sub_sel_obsn == TRUE, dev_events] -
+    #   X_mat %*% beta_hat_2
+    # summary(summ_sub$residuals - resid_check_1)
+    #
+    # resid_check_2 <- saaq_data[sub_sel_obsn == TRUE, dev_events] -
+    #   lm_spec$fitted.values
+    # summary(summ_sub$residuals - resid_check_2)
+    #
+    # resid_check_3 <- saaq_data[sub_sel_obsn == TRUE, dev_events] -
+    #   predict(lm_spec)
+    # summary(summ_sub$residuals - resid_check_3)
+    #
+    #
+    # # Check that the observations are in the same order by checking weights.
+    # summary(saaq_data[sub_sel_obsn == TRUE, num] - summ_sub$weights)
+
+
+    # Calculate residuals for calculating the F-statistic.
+    summ_sub$resid_F_stat <- saaq_data[sub_sel_obsn == TRUE, dev_events] -
+      lm_spec$fitted.values
 
     # attributes(summ_sub)
 
@@ -574,6 +614,8 @@ for (file_tag in file_tag_list) {
 
     # Calculate (observation-weighted) sum of squared residuals.
     SSR_sub <- sum(summ_sub$weights*summ_sub$residuals^2)
+    SSR_sub_F_stat <- sum(summ_sub$weights*summ_sub$resid_F_stat^2)
+    # SSR_sub <- sum(saaq_data[sub_sel_obsn == TRUE, num]*resid_check^2)
     num_sub <- sum(summ_sub$weights)
 
 
@@ -657,7 +699,7 @@ for (file_tag in file_tag_list) {
 
     # Now get the bread of the sandwich from the regression model.
     # Make an adjustment to back out the standard error.
-    CRVE_bread <- vcov(lm_spec, complete = FALSE)/summ_sub$sigma^2
+    CRVE_bread <- lm_cov/summ_sub$sigma^2
     # This should be X-transpose-X-inverse.
     # And the order of columns must be the same.
     colnames(CRVE_bread)
@@ -696,9 +738,18 @@ for (file_tag in file_tag_list) {
 
     # Retrieve CRVE covariance elements for linear combinations of parameters,
     # such as intercept + curr_pts_grp or dev_policy + dev_policy*curr_pts_grp.
-    FE_CRVE_cov[, sprintf('%s_int', sex_sel)] <- CRVE_mat[, '(Intercept)']
-    FE_CRVE_cov[, sprintf('%s_policy', sex_sel)] <- CRVE_mat[, 'dev_policy']
+    # FE_CRVE_cov[, sprintf('%s_int', sex_sel)] <- CRVE_mat[, '(Intercept)']
+    # FE_CRVE_cov[, sprintf('%s_policy', sex_sel)] <- CRVE_mat[, 'dev_policy']
+    # These can be calculated without storing them.
 
+    # Adjust standard covariance matrix for degrees of freedom.
+    # Used for calculating standard errors of linear combinations of coefficients.
+    lm_FE_cov_adj <- FE_SE_adj_factor(resid_lm = summ_sub$residuals,
+                                      num_obs = num_obs,
+                                      num_rows = num_rows,
+                                      num_vars = length(var_list),
+                                      num_FE = num_drivers)
+    lm_FE_cov <- lm_cov*lm_FE_cov_adj^2
 
 
     #--------------------------------------------------------------------------------
@@ -815,17 +866,25 @@ for (file_tag in file_tag_list) {
     #   qnorm(0.975)*FE_estimates[, 'SE_M']
 
     # Calculate standard error of linear combination of coefficients.
-    # Start with the current standard errors.
-    FE_CI <- FE_estimates[, sprintf('SE_%s', sex_sel)]
+    # Start with the "standard" standard errors.
+    FE_CI_SE <- FE_estimates[, sprintf('SE_%s', sex_sel)]
     # For the current points group, account for the variance of the intercept.
-
+    # Need to adjust covariance for degrees of freedom.
+    FE_CI_SE[var_list_1] <- sqrt(diag(lm_FE_cov[var_list_1, var_list_1]) +
+                                2*lm_FE_cov[var_list_1, '(Intercept)'] +
+                                  lm_FE_cov['(Intercept)', '(Intercept)'])
+    # For policy interactions with the current points group,
+    # account for the variance of the policy indicator.
+    FE_CI_SE[var_list_2] <- sqrt(diag(lm_FE_cov[var_list_2, var_list_2]) +
+                                2*lm_FE_cov[var_list_2, 'dev_policy'] +
+                                  lm_FE_cov['dev_policy', 'dev_policy'])
 
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] +
-                            qnorm(0.975)*FE_CI)
+                            qnorm(0.975)*FE_CI_SE)
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] -
-                            qnorm(0.975)*FE_CI)
+                            qnorm(0.975)*FE_CI_SE)
 
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('CI_U_%s', sex_sel),
@@ -833,13 +892,19 @@ for (file_tag in file_tag_list) {
 
 
     # Calculate another pair of confidence bounds with CRVE.
-    FE_CI <- FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)]
+    FE_CI_SE <- FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)]
+    FE_CI_SE[var_list_1] <- sqrt(diag(CRVE_mat[var_list_1, var_list_1]) +
+                                2*CRVE_mat[var_list_1, '(Intercept)'] +
+                                CRVE_mat['(Intercept)', '(Intercept)'])
+    FE_CI_SE[var_list_2] <- sqrt(diag(CRVE_mat[var_list_2, var_list_2]) +
+                                2*CRVE_mat[var_list_2, 'dev_policy'] +
+                                CRVE_mat['dev_policy', 'dev_policy'])
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] +
-                            qnorm(0.975)*FE_CI)
+                            qnorm(0.975)*FE_CI_SE)
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] -
-                            qnorm(0.975)*FE_CI)
+                            qnorm(0.975)*FE_CI_SE)
 
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('CI_CRVE_U_%s', sex_sel),
@@ -1036,7 +1101,8 @@ for (file_tag in file_tag_list) {
 
   # plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'black', lwd = 3,
   #      ylim = c(-0.02, 0.02))
-  plot(FE_estimates[var_nums, 'Est_M'] + FE_estimates['(Intercept)', 'Est_M'],
+  plot(FE_estimates[var_nums, 'Est_M'] +
+         FE_estimates['(Intercept)', 'Est_M'],
        type = 'l', col = 'black', lwd = 3,
        ylim = c(-0.02, 0.02))
   lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
@@ -1047,7 +1113,8 @@ for (file_tag in file_tag_list) {
   # Female drivers in grey.
   grey_F <- gray.colors(n = 1, start = 0.6, end = 0.6)
   # lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
-  lines(1:n_vars, FE_estimates[var_nums, 'Est_F'] + FE_estimates['(Intercept)', 'Est_F'],
+  lines(1:n_vars, FE_estimates[var_nums, 'Est_F'] +
+          FE_estimates['(Intercept)', 'Est_F'],
         col = grey_F, lwd = 3)
 
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
@@ -1064,10 +1131,18 @@ for (file_tag in file_tag_list) {
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'black', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'black', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'] +
+          FE_estimates['(Intercept)', 'Est_M'],
+        col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'] +
+          FE_estimates['(Intercept)', 'Est_M'],
+        col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'] +
+          FE_estimates['(Intercept)', 'Est_F'],
+        col = grey_F, lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'] +
+          FE_estimates['(Intercept)', 'Est_F'],
+        col = grey_F, lwd = 3, lty = 'dashed')
 
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'),
          col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
@@ -1136,10 +1211,18 @@ for (file_tag in file_tag_list) {
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'blue', lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = 'red', lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = 'red', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'], col = 'black', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'black', lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
-  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_M'] +
+          FE_estimates['dev_policy', 'Est_M'],
+        col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'] +
+          FE_estimates['dev_policy', 'Est_M'],
+        col = 'black', lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'] +
+          FE_estimates['dev_policy', 'Est_F'],
+        col = grey_F, lwd = 3, lty = 'dashed')
+  lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'] +
+          FE_estimates['dev_policy', 'Est_M'],
+        col = grey_F, lwd = 3, lty = 'dashed')
 
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'),
          col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)

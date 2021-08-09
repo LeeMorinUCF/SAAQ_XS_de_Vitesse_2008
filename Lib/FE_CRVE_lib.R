@@ -58,6 +58,32 @@ adj_FE_coef_SE <- function(coef_orig, se_adj,
 }
 
 #--------------------------------------------------------------------------------
+# FE_SE_adj_factor calculates a multiplier to convert standard errors
+# from the second stage OLS (after the Frisch-Waugh-Lovell regressions) to have
+# the correct degrees of freedom denominator for the fixed effects regression
+#
+# Dependencies: None.
+#
+#--------------------------------------------------------------------------------
+
+FE_SE_adj_factor <- function(resid_lm,
+                             num_obs, num_rows, num_vars, num_FE) {
+
+  # s^2 estimate for fixed effects model.
+  s2_true <- sum(resid_lm^2) /
+    (num_obs - (num_vars + num_FE + 1))
+
+  # s^2 estimate for the weighted model.
+  s2_lm <- sum(resid_lm^2) /
+    (num_rows - (num_vars + 1))
+
+  # Calculate adjustment ratio for standard errors.
+  se_adj_factor <- sqrt(s2_true)/sqrt(s2_lm)
+
+  return(se_adj_factor)
+}
+
+#--------------------------------------------------------------------------------
 # adj_FE_coef_table adjusts the table of coefficients
 # for adjusted standard errors in the fixed effects model.
 # It makes the adjustment between
@@ -75,16 +101,9 @@ adj_FE_coef_SE <- function(coef_orig, se_adj,
 adj_FE_coef_table <- function(coef_lm, resid_lm,
                               num_obs, num_rows, num_vars, num_FE) {
 
-  # s^2 estimate for fixed effects model.
-  s2_true <- sum(resid_lm^2) /
-    (num_obs - (num_vars + num_FE + 1))
-
-  # s^2 estimate for the weighted model.
-  s2_lm <- sum(resid_lm^2) /
-    (num_rows - (num_vars + 1))
-
   # Calculate adjustment ratio for standard errors.
-  se_adj_factor <- sqrt(s2_true)/sqrt(s2_lm)
+  se_adj_factor <- FE_SE_adj_factor(resid_lm,
+                               num_obs, num_rows, num_vars, num_FE)
 
   # Replace the standard errors and other statistics
   # to account for difference in degrees of freedom.
@@ -234,9 +253,9 @@ calc_FE_CRVE_mat <- function(CRVE_bread, CRVE_meat,
   # num_seq <- nrow(CRVE_by_seq)
   CRVE_mat <- CRVE_mat*(num_ind/(num_ind-1))*(num_obs - 1)/(num_obs - num_vars)
 
-  # Take the standard errors, as usual.
+  # Take the standard errors from the diagonal.
   # CRVE_SE <- sqrt(diag(CRVE_mat))
-
+  # Moved outside the function to pass the covariance matrix.
 
 
   return(CRVE_mat)
