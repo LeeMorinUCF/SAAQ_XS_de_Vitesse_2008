@@ -224,20 +224,22 @@ calc_CRVE_meat <- function(CRVE_by_seq, var_col_names) {
 #
 #--------------------------------------------------------------------------------
 
-calc_CRVE_FE_SE <- function(CRVE_bread, CRVE_meat,
+calc_FE_CRVE_mat <- function(CRVE_bread, CRVE_meat,
                             num_ind, num_obs, num_vars) {
 
   # Now make a sandwich.
-  CRVE <- CRVE_bread %*% CRVE_meat %*% CRVE_bread
+  CRVE_mat <- CRVE_bread %*% CRVE_meat %*% CRVE_bread
 
   # Take the standard errors, multiplied by a degrees of freedom correction.
   # num_seq <- nrow(CRVE_by_seq)
-  CRVE <- CRVE*(num_ind/(num_ind-1))*(num_obs - 1)/(num_obs - num_vars)
+  CRVE_mat <- CRVE_mat*(num_ind/(num_ind-1))*(num_obs - 1)/(num_obs - num_vars)
 
   # Take the standard errors, as usual.
-  CRVE_SE <- sqrt(diag(CRVE))
+  # CRVE_SE <- sqrt(diag(CRVE_mat))
 
-  return(CRVE_SE)
+
+
+  return(CRVE_mat)
 }
 
 

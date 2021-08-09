@@ -37,14 +37,10 @@ rm(list=ls(all=TRUE))
 library(data.table)
 
 # Load PRROC package for calculating area under the ROC curve.
-library(PRROC)
+# library(PRROC)
 
 # Load xtable library to create tex scripts for tables.
-library(xtable)
-
-# Load scales library because it has a function
-# to display large numbers in comma format.
-library(scales)
+# library(xtable)
 
 
 
@@ -102,6 +98,9 @@ sex_sel_list <- c('A', 'M', 'F')
 
 # Load library for estimating FE and CRVE estimators with frequency-weighted data.
 source('Lib/FE_CRVE_lib.R')
+
+# Load library for generating LaTeX tables of estimates.
+source('Lib/FE_reg_table_lib.R')
 
 
 ################################################################################
@@ -422,11 +421,35 @@ colnames(saaq_data)
 #
 ################################################################################
 
+# Set list of variables for regression models.
+
+# First variable is the policy indicator,
+# projected off the fixed effects indicators.
+var_list_0 <- c('dev_policy')
+
+# Set the list of variables by points category.
+# Assumes first points category omitted:
+var_list_1 <- sprintf('curr_pts_%s',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+var_list_2 <- sprintf('curr_pts_%s_policy',
+                      gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+var_list <- c(var_list_0, var_list_1, var_list_2)
+
+
 
 # file_tag <- 'high_pts'
 # file_tag <- 'all_pts'
 for (file_tag in file_tag_list) {
 
+  # Initialize a matrix of coefficients.
+  FE_estimates <- NULL
+
+  # Initialize matrix of relevant elements of the covariance matrices.
+  FE_CRVE_cov <- data.frame(matrix(nrow = length(var_list) + 1, ncol = 6))
+  rownames(FE_CRVE_cov) <- c('(Intercept)', var_list)
+  colnames(FE_CRVE_cov) <- sprintf('%s_%s',
+                                   rep(c('A', 'M', 'F'), each = 2),
+                                   rep(c('int', 'policy'), 3))
 
   #-------------------------------------------------------------------------------
   # Select data for sample of driver type.
@@ -442,13 +465,11 @@ for (file_tag in file_tag_list) {
     stop(sprintf("file_tag '%s' not recognized.", file_tag))
   }
 
+
   #-------------------------------------------------------------------------------
   # Select subsample for either male, female, or all drivers
   #-------------------------------------------------------------------------------
 
-  # Initialize a matrix of coefficients.
-  FE_estimates <- NULL
-  #
   # sex_sel_list <- c('A', 'M', 'F')
   # sex_sel <- 'A'
   # sex_sel <- 'M'
@@ -490,18 +511,18 @@ for (file_tag in file_tag_list) {
     # Estimate fixed effects regression
     #--------------------------------------------------------------------------------
 
-
-    # First variable is the policy indicator,
-    # projected off the fixed effects indicators.
-    var_list_0 <- c('dev_policy')
-
-    # Set the list of variables by points category.
-    # Assumes first points category omitted:
-    var_list_1 <- sprintf('curr_pts_%s',
-                          gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
-    var_list_2 <- sprintf('curr_pts_%s_policy',
-                          gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
-    var_list <- c(var_list_0, var_list_1, var_list_2)
+#
+#     # First variable is the policy indicator,
+#     # projected off the fixed effects indicators.
+#     var_list_0 <- c('dev_policy')
+#
+#     # Set the list of variables by points category.
+#     # Assumes first points category omitted:
+#     var_list_1 <- sprintf('curr_pts_%s',
+#                           gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+#     var_list_2 <- sprintf('curr_pts_%s_policy',
+#                           gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+#     var_list <- c(var_list_0, var_list_1, var_list_2)
 
     # # Eliminate the constant term.
     # fmla_str <- sprintf('dev_events ~ 0 + %s',
@@ -644,12 +665,16 @@ for (file_tag in file_tag_list) {
     var_col_names == colnames(CRVE_bread)
     colnames(CRVE_bread) == colnames(CRVE_meat)
 
-    # Calculate the standard errors from the CRVE sandwich estimator.
-    CRVE_SE <- calc_CRVE_FE_SE(CRVE_bread = CRVE_bread,
-                               CRVE_meat = CRVE_meat,
-                               num_ind = nrow(CRVE_by_seq), # = num_seq
-                               num_obs = sum(summ_sub$weights), # = num_sub
-                               num_vars = length(var_col_names))
+    # Calculate the CRVE sandwich estimator.
+    CRVE_mat <- calc_FE_CRVE_mat(CRVE_bread = CRVE_bread,
+                                 CRVE_meat = CRVE_meat,
+                                 num_ind = nrow(CRVE_by_seq), # = num_seq
+                                 num_obs = sum(summ_sub$weights), # = num_sub
+                                 num_vars = length(var_col_names))
+
+
+    # Take the standard errors from the diagonal.
+    CRVE_SE <- sqrt(diag(CRVE_mat))
 
     # Compare with the standard standard errors.
     # CRVE_SE/summ_sub$coefficients[, c('Std. Error')]
@@ -667,6 +692,12 @@ for (file_tag in file_tag_list) {
     # Notice that the degrees of freedom depend on the
     # number of clusters (drivers) and not the number of observations.
     # Thus, the number of variables does not include the fixed effects.
+
+
+    # Retrieve CRVE covariance elements for linear combinations of parameters,
+    # such as intercept + curr_pts_grp or dev_policy + dev_policy*curr_pts_grp.
+    FE_CRVE_cov[, sprintf('%s_int', sex_sel)] <- CRVE_mat[, '(Intercept)']
+    FE_CRVE_cov[, sprintf('%s_policy', sex_sel)] <- CRVE_mat[, 'dev_policy']
 
 
 
@@ -773,6 +804,9 @@ for (file_tag in file_tag_list) {
 
 
     # Calculate confidence bounds on estimates.
+    # Confidence intervals account for the total policy effect,
+    # for the linear combination of intercept + curr_pts_grp
+    # policy + curr_pts_grp*policy.
     # FE_estimates <- cbind(FE_estimates, FE_estimates*0)
     # colnames(FE_estimates) <- c('Est_M', 'SE_M', 'Est_F', 'SE_F', 'Est_A', 'SE_A',
     #                             'CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F', 'CI_L_A', 'CI_U_A')
@@ -780,12 +814,18 @@ for (file_tag in file_tag_list) {
     # FE_estimates[, 'CI_U_M'] <- FE_estimates[, 'Est_M'] +
     #   qnorm(0.975)*FE_estimates[, 'SE_M']
 
+    # Calculate standard error of linear combination of coefficients.
+    # Start with the current standard errors.
+    FE_CI <- FE_estimates[, sprintf('SE_%s', sex_sel)]
+    # For the current points group, account for the variance of the intercept.
+
+
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] +
-                            qnorm(0.975)*FE_estimates[, sprintf('SE_%s', sex_sel)])
+                            qnorm(0.975)*FE_CI)
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] -
-                            qnorm(0.975)*FE_estimates[, sprintf('SE_%s', sex_sel)])
+                            qnorm(0.975)*FE_CI)
 
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('CI_U_%s', sex_sel),
@@ -793,12 +833,13 @@ for (file_tag in file_tag_list) {
 
 
     # Calculate another pair of confidence bounds with CRVE.
+    FE_CI <- FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)]
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] +
-                            qnorm(0.975)*FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)])
+                            qnorm(0.975)*FE_CI)
     FE_estimates <- cbind(FE_estimates,
                           FE_estimates[, sprintf('Est_%s', sex_sel)] -
-                            qnorm(0.975)*FE_estimates[, sprintf('SE_CRVE_%s', sex_sel)])
+                            qnorm(0.975)*FE_CI)
 
     new_cols <- (ncol(FE_estimates) - 1):ncol(FE_estimates)
     colnames(FE_estimates)[new_cols] <- c(sprintf('CI_CRVE_U_%s', sex_sel),
@@ -987,13 +1028,16 @@ for (file_tag in file_tag_list) {
 
   # Plot levels of tickets before policy change.
   # var_nums <- 1:13
-  var_nums <- 1:14
+  var_nums <- 3:15
   n_vars <- length(var_nums)
 
   fig_filename <- sprintf('%s/FFX_reg_points_grp_%s.pdf', fig_dir, file_tag)
   pdf(fig_filename)
 
-  plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'black', lwd = 3,
+  # plot(FE_estimates[var_nums, 'Est_M'], type = 'l', col = 'black', lwd = 3,
+  #      ylim = c(-0.02, 0.02))
+  plot(FE_estimates[var_nums, 'Est_M'] + FE_estimates['(Intercept)', 'Est_M'],
+       type = 'l', col = 'black', lwd = 3,
        ylim = c(-0.02, 0.02))
   lines(1:n_vars, rep(0, n_vars), col = 'black', lwd = 1)
 
@@ -1002,7 +1046,9 @@ for (file_tag in file_tag_list) {
 
   # Female drivers in grey.
   grey_F <- gray.colors(n = 1, start = 0.6, end = 0.6)
-  lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
+  # lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
+  lines(1:n_vars, FE_estimates[var_nums, 'Est_F'] + FE_estimates['(Intercept)', 'Est_F'],
+        col = grey_F, lwd = 3)
 
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
@@ -1022,7 +1068,6 @@ for (file_tag in file_tag_list) {
   lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_M'], col = 'black', lwd = 3, lty = 'dashed')
   lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
   lines(1:n_vars, FE_estimates[var_nums, 'CI_CRVE_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
-
 
   legend('topleft', legend = c('Male Drivers', 'Female Drivers'),
          col = c('black', grey_F), lwd = 3, lty = 'solid', cex = 1.5)
@@ -1058,7 +1103,9 @@ for (file_tag in file_tag_list) {
   fig_filename <- sprintf('%s/FFX_reg_policy_points_grp_%s.pdf', fig_dir, file_tag)
   pdf(fig_filename)
 
-  plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'],
+  # Plot total policy effect by points group.
+  plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'] +
+         FE_estimates['dev_policy', 'Est_M'],
        xlab = 'Demerit Point Category',
        ylab = 'Policy Effect',
        type = 'l', col = 'black', lwd = 3,
@@ -1071,7 +1118,9 @@ for (file_tag in file_tag_list) {
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_M'], col = 'black', lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_M'], col = 'black', lwd = 3, lty = 'dashed')
 
-  lines(1:n_vars, FE_estimates[var_nums, 'Est_F'], col = grey_F, lwd = 3)
+  lines(1:n_vars, FE_estimates[var_nums, 'Est_F'] +
+          FE_estimates['dev_policy', 'Est_F'],
+        col = grey_F, lwd = 3)
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_U_F'], col = grey_F, lwd = 3, lty = 'dashed')
   # lines(1:n_vars, FE_estimates[var_nums, 'CI_L_F'], col = grey_F, lwd = 3, lty = 'dashed')
 
@@ -1102,13 +1151,14 @@ for (file_tag in file_tag_list) {
   #-------------------------------------------------------------------------------
 
   # Create a table for display.
-  colnames(FE_estimates)
+  # colnames(FE_estimates)
   FE_est_out <- FE_estimates[, c('Est_A', 'SE_A',
                                  'Est_M', 'SE_M',
                                  'Est_F', 'SE_F')]
 
 
   # Output to TeX file.
+  # tab_file_path <- sprintf('%s/FE_regs_%s.tex', tab_dir, file_tag)
   tab_file_path <- sprintf('%s/FE_regs_%s.tex', tab_dir, file_tag)
 
 
@@ -1125,97 +1175,119 @@ for (file_tag in file_tag_list) {
   label <- sprintf('tab:FE_regs_%s', file_tag)
 
 
-  # Output header.
-  cat(sprintf('%% %s \n\n', header),
-      file = tab_file_path, append = FALSE)
-  cat('\\begin{table}% [ht] \n', file = tab_file_path, append = TRUE)
-  cat('\\centering \n', file = tab_file_path, append = TRUE)
-  cat('\\begin{tabular}{l r r r r r r} \n', file = tab_file_path, append = TRUE)
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
 
-  # Output column headers.
-  cat('\nSample \n', file = tab_file_path, append = TRUE)
-  for (sample_name in c('All', 'Male', 'Female')) {
-    cat(sprintf(" & \\multicolumn{2}{c}{%s  Drivers} ", sample_name),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  # Call function to generate LaTeX table.
+  FE_reg_flag <- FE_reg_table(FE_est_out, tab_file_path,
+                              header, caption, description, label)
 
-  cat('\n \\cmidrule(lr){1-1}\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7} \n',
-      file = tab_file_path, append = TRUE)
-
-  cat('\nEstimate ', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    cat(' & Coefficient & Std. Error ', file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-
-  # Output table of estimates.
-  cat('\\multicolumn{4}{l}{\\textbf{Demerit points group indicators:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
-  for (row in 1:nrow(FE_est_out)) {
-
-
-    var_name <- rownames(FE_est_out)[row]
-    var_name <- gsub('curr_pts_', '', var_name)
-    var_name <- gsub('_policy', '', var_name)
-    var_name <- gsub('_', '-', var_name)
-    var_name <- sprintf('%s points', var_name)
-
-    cat(sprintf('%s ', var_name), file = tab_file_path, append = TRUE)
-    for (col in 1:ncol(FE_est_out)) {
-
-      cat(sprintf(' & %6.3f ', FE_est_out[row, col]*1000),
-          file = tab_file_path, append = TRUE)
-    }
-    cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-    if (row == 13) {
-      cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-      cat('\\multicolumn{4}{l}{\\textbf{Policy and points group interactions:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
-    }
-
-  }
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-  # Output summary statistics.
-  # FFX_stats
-
-  cat('\nDrivers \n', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    num_drivers <- comma_format()(FFX_stats[i, 'num_drivers'])
-    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_drivers),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\nDriver days \n', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    num_obs <- comma_format()(FFX_stats[i, 'num_obs'])
-    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_obs),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\nSSR \n', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    SSR <- comma_format()(FFX_stats[i, 'SSR'])
-    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', SSR),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-
-  # Output closing arguments.
-  cat('\\end{tabular} \n', file = tab_file_path, append = TRUE)
-  cat(sprintf('\\caption{%s} \n', caption), file = tab_file_path, append = TRUE)
-  for (desc_row in 1:length(description)) {
-    cat(sprintf('%s \n', description[desc_row]), file = tab_file_path, append = TRUE)
-  }
-  cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
-  cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
+#
+#
+#   # Output header.
+#   cat(sprintf('%% %s \n\n', header),
+#       file = tab_file_path, append = FALSE)
+#   cat('\\begin{table}% [ht] \n', file = tab_file_path, append = TRUE)
+#   cat('\\centering \n', file = tab_file_path, append = TRUE)
+#   cat('\\begin{tabular}{l r r r r r r} \n', file = tab_file_path, append = TRUE)
+#   cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+#
+#   # Output column headers.
+#   cat('\nSample \n', file = tab_file_path, append = TRUE)
+#   for (sample_name in c('All', 'Male', 'Female')) {
+#     cat(sprintf(" & \\multicolumn{2}{c}{%s  Drivers} ", sample_name),
+#         file = tab_file_path, append = TRUE)
+#   }
+#   cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+#
+#   cat('\n \\cmidrule(lr){1-1}\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7} \n',
+#       file = tab_file_path, append = TRUE)
+#
+#   cat('\nEstimate ', file = tab_file_path, append = TRUE)
+#   for (i in 1:3) {
+#     cat(' & Coefficient & Std. Error ', file = tab_file_path, append = TRUE)
+#   }
+#   cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+#   cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+#
+#
+#   # Output table of estimates.
+#
+#   for (row in 1:nrow(FE_est_out)) {
+#
+#     if (row == 3) {
+#       cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+#       cat('\\multicolumn{4}{l}{\\textbf{Demerit points group indicators:}}  \\\\ \n \n',
+#           file = tab_file_path, append = TRUE)
+#     }
+#
+#
+#     # Create variable name for table.
+#     var_name <- rownames(FE_est_out)[row]
+#     var_name <- gsub('curr_pts_', '', var_name)
+#     var_name <- gsub('_policy', '', var_name)
+#     var_name <- gsub('_', '-', var_name)
+#     if (var_name == '(Intercept)') {
+#       var_name <- 'Intercept'
+#     } else if (var_name == 'dev') {
+#       var_name <- 'policy'
+#     } else {
+#       var_name <- sprintf('%s points', var_name)
+#     }
+#
+#     cat(sprintf('%s ', var_name), file = tab_file_path, append = TRUE)
+#     for (col in 1:ncol(FE_est_out)) {
+#
+#       cat(sprintf(' & %6.3f ', FE_est_out[row, col]*1000),
+#           file = tab_file_path, append = TRUE)
+#     }
+#     cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+#     # Print divider to report policy-points-group interactions separately.
+#     if (row == (nrow(FE_est_out) - 2)/2 + 2) {
+#       cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+#       cat('\\multicolumn{4}{l}{\\textbf{Policy and points group interactions:}}  \\\\ \n \n',
+#           file = tab_file_path, append = TRUE)
+#     }
+#
+#   }
+#   cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+#
+#   # Output summary statistics.
+#   # FFX_stats
+#
+#   cat('\nDrivers \n', file = tab_file_path, append = TRUE)
+#   for (i in 1:3) {
+#     num_drivers <- comma_format()(FFX_stats[i, 'num_drivers'])
+#     cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_drivers),
+#         file = tab_file_path, append = TRUE)
+#   }
+#   cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+#
+#   cat('\nDriver days \n', file = tab_file_path, append = TRUE)
+#   for (i in 1:3) {
+#     num_obs <- comma_format()(FFX_stats[i, 'num_obs'])
+#     cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_obs),
+#         file = tab_file_path, append = TRUE)
+#   }
+#   cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+#
+#   cat('\nSSR \n', file = tab_file_path, append = TRUE)
+#   for (i in 1:3) {
+#     SSR <- comma_format()(FFX_stats[i, 'SSR'])
+#     cat(sprintf(' & \\multicolumn{2}{r}{%s} ', SSR),
+#         file = tab_file_path, append = TRUE)
+#   }
+#   cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+#
+#   cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+#
+#
+#   # Output closing arguments.
+#   cat('\\end{tabular} \n', file = tab_file_path, append = TRUE)
+#   cat(sprintf('\\caption{%s} \n', caption), file = tab_file_path, append = TRUE)
+#   for (desc_row in 1:length(description)) {
+#     cat(sprintf('%s \n', description[desc_row]), file = tab_file_path, append = TRUE)
+#   }
+#   cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
+#   cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
 
 
   #-------------------------------------------------------------------------------
@@ -1225,13 +1297,15 @@ for (file_tag in file_tag_list) {
 
 
   # Create a table for display.
-  colnames(FE_estimates)
+  # colnames(FE_estimates)
   FE_est_out <- FE_estimates[, c('Est_A', 'SE_CRVE_A',
                                  'Est_M', 'SE_CRVE_M',
                                  'Est_F', 'SE_CRVE_F')]
 
   # Output to TeX file.
   tab_file_path <- sprintf('%s/FE_regs_CRVE_%s.tex', tab_dir, file_tag)
+
+
 
   # Output TeX code for tables.
   if (file_tag == 'all_pts') {
@@ -1248,98 +1322,101 @@ for (file_tag in file_tag_list) {
   label <- sprintf('tab:FE_regs_CRVE_%s', file_tag)
 
 
+  # Call function to generate LaTeX table.
+  FE_CRVE_reg_flag <- FE_reg_table(FE_est_out, tab_file_path,
+                                   header, caption, description, label)
 
-  # Output header.
-  cat(sprintf('%% %s \n\n', header),
-      file = tab_file_path, append = FALSE)
-  cat('\\begin{table}% [ht] \n', file = tab_file_path, append = TRUE)
-  cat('\\centering \n', file = tab_file_path, append = TRUE)
-  cat('\\begin{tabular}{l r r r r r r} \n', file = tab_file_path, append = TRUE)
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-  # Output column headers.
-  cat('\nSample \n', file = tab_file_path, append = TRUE)
-  for (sample_name in c('All', 'Male', 'Female')) {
-    cat(sprintf(" & \\multicolumn{2}{c}{%s  Drivers} ", sample_name),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\n \\cmidrule(lr){1-1}\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7} \n',
-      file = tab_file_path, append = TRUE)
-
-  cat('\nEstimate ', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    cat(' & Coefficient & Std. Error ', file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-
-  # Output table of estimates.
-  cat('\\multicolumn{4}{l}{\\textbf{Demerit points group indicators:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
-  for (row in 1:nrow(FE_est_out)) {
-
-
-    var_name <- rownames(FE_est_out)[row]
-    var_name <- gsub('curr_pts_', '', var_name)
-    var_name <- gsub('_policy', '', var_name)
-    var_name <- gsub('_', '-', var_name)
-    var_name <- sprintf('%s points', var_name)
-
-    cat(sprintf('%s ', var_name), file = tab_file_path, append = TRUE)
-    for (col in 1:ncol(FE_est_out)) {
-
-      cat(sprintf(' & %6.3f ', FE_est_out[row, col]*1000),
-          file = tab_file_path, append = TRUE)
-    }
-    cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-    if (row == 13) {
-      cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-      cat('\\multicolumn{4}{l}{\\textbf{Policy and points group interactions:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
-    }
-
-  }
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-  # Output summary statistics.
-  # FFX_stats
-
-  cat('\nDrivers \n', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    num_drivers <- comma_format()(FFX_stats[i, 'num_drivers'])
-    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_drivers),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\nDriver days \n', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    num_obs <- comma_format()(FFX_stats[i, 'num_obs'])
-    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_obs),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\nSSR \n', file = tab_file_path, append = TRUE)
-  for (i in 1:3) {
-    SSR <- comma_format()(FFX_stats[i, 'SSR'])
-    cat(sprintf(' & \\multicolumn{2}{r}{%s} ', SSR),
-        file = tab_file_path, append = TRUE)
-  }
-  cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
-
-  cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
-
-
-  # Output closing arguments.
-  cat('\\end{tabular} \n', file = tab_file_path, append = TRUE)
-  cat(sprintf('\\caption{%s} \n', caption), file = tab_file_path, append = TRUE)
-  for (desc_row in 1:length(description)) {
-    cat(sprintf('%s \n', description[desc_row]), file = tab_file_path, append = TRUE)
-  }
-  cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
-  cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
+  # # Output header.
+  # cat(sprintf('%% %s \n\n', header),
+  #     file = tab_file_path, append = FALSE)
+  # cat('\\begin{table}% [ht] \n', file = tab_file_path, append = TRUE)
+  # cat('\\centering \n', file = tab_file_path, append = TRUE)
+  # cat('\\begin{tabular}{l r r r r r r} \n', file = tab_file_path, append = TRUE)
+  # cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+  #
+  # # Output column headers.
+  # cat('\nSample \n', file = tab_file_path, append = TRUE)
+  # for (sample_name in c('All', 'Male', 'Female')) {
+  #   cat(sprintf(" & \\multicolumn{2}{c}{%s  Drivers} ", sample_name),
+  #       file = tab_file_path, append = TRUE)
+  # }
+  # cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  #
+  # cat('\n \\cmidrule(lr){1-1}\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7} \n',
+  #     file = tab_file_path, append = TRUE)
+  #
+  # cat('\nEstimate ', file = tab_file_path, append = TRUE)
+  # for (i in 1:3) {
+  #   cat(' & Coefficient & Std. Error ', file = tab_file_path, append = TRUE)
+  # }
+  # cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  # cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+  #
+  #
+  # # Output table of estimates.
+  # cat('\\multicolumn{4}{l}{\\textbf{Demerit points group indicators:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  # for (row in 1:nrow(FE_est_out)) {
+  #
+  #
+  #   var_name <- rownames(FE_est_out)[row]
+  #   var_name <- gsub('curr_pts_', '', var_name)
+  #   var_name <- gsub('_policy', '', var_name)
+  #   var_name <- gsub('_', '-', var_name)
+  #   var_name <- sprintf('%s points', var_name)
+  #
+  #   cat(sprintf('%s ', var_name), file = tab_file_path, append = TRUE)
+  #   for (col in 1:ncol(FE_est_out)) {
+  #
+  #     cat(sprintf(' & %6.3f ', FE_est_out[row, col]*1000),
+  #         file = tab_file_path, append = TRUE)
+  #   }
+  #   cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  #   if (row == 13) {
+  #     cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+  #     cat('\\multicolumn{4}{l}{\\textbf{Policy and points group interactions:}}  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  #   }
+  #
+  # }
+  # cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+  #
+  # # Output summary statistics.
+  # # FFX_stats
+  #
+  # cat('\nDrivers \n', file = tab_file_path, append = TRUE)
+  # for (i in 1:3) {
+  #   num_drivers <- comma_format()(FFX_stats[i, 'num_drivers'])
+  #   cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_drivers),
+  #       file = tab_file_path, append = TRUE)
+  # }
+  # cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  #
+  # cat('\nDriver days \n', file = tab_file_path, append = TRUE)
+  # for (i in 1:3) {
+  #   num_obs <- comma_format()(FFX_stats[i, 'num_obs'])
+  #   cat(sprintf(' & \\multicolumn{2}{r}{%s} ', num_obs),
+  #       file = tab_file_path, append = TRUE)
+  # }
+  # cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  #
+  # cat('\nSSR \n', file = tab_file_path, append = TRUE)
+  # for (i in 1:3) {
+  #   SSR <- comma_format()(FFX_stats[i, 'SSR'])
+  #   cat(sprintf(' & \\multicolumn{2}{r}{%s} ', SSR),
+  #       file = tab_file_path, append = TRUE)
+  # }
+  # cat('  \\\\ \n \n', file = tab_file_path, append = TRUE)
+  #
+  # cat('\n\\hline \n \n', file = tab_file_path, append = TRUE)
+  #
+  #
+  # # Output closing arguments.
+  # cat('\\end{tabular} \n', file = tab_file_path, append = TRUE)
+  # cat(sprintf('\\caption{%s} \n', caption), file = tab_file_path, append = TRUE)
+  # for (desc_row in 1:length(description)) {
+  #   cat(sprintf('%s \n', description[desc_row]), file = tab_file_path, append = TRUE)
+  # }
+  # cat(sprintf('\\label{%s} \n', label), file = tab_file_path, append = TRUE)
+  # cat('\\end{table} \n \n', file = tab_file_path, append = TRUE)
 
 
 }

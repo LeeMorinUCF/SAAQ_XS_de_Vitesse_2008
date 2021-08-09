@@ -148,13 +148,13 @@ We estimated the fixed effects model with indicators for each demerit point cate
 and the interactions of these demerit point indicators with the period after the policy change. 
 We performed the estimation using a training sample of seventy percent of the drivers in the sample.%
 \footnote{The remaining sample is reserved as a testing sample for further model specification searches, for the models with other variables besides the demerit point balances. }
-The estimation results are shown in Table \ref{tab:FE_regs_all_pts}. 
+The estimation results are shown in Table \ref{tab:FE_regs_CRVE_all_pts}. 
 % 
 Note that the indicator is missing for the category of drivers with more than thirty demerit points, 
 aside from the corresponding policy interaction because the sample contains no drivers with such high point balances before the policy change. 
 % 
 
-\input{../Tables/FE_regs_all_pts}
+\input{../Tables/FE_regs_CRVE_all_pts}
 
 The coefficients on the indicators for demerit point categories are largely insignificant for all samples considered in Table \ref{tab:FE_regs_all_pts}. 
 This may reflect the fact that as drivers accumulate points, they reveal their innate tendency to drive quickly and also incur the deterrent effect of the threat of penalties associated with a high demerit point balance. 
@@ -165,7 +165,14 @@ Regardless, the results in Table \ref{tab:FE_regs_all_pts} indicate that the det
 for the harsher penalties is more pronounced for drivers who tend to exceed the speed limit. 
 
 
-% \input{../Tables/FE_regs_all_pts}
+To compare the difference in statistical significance with without the cluster-robust standard error estimates, 
+refer to the estimates in Table \ref{tab:FE_regs_all_pts}. 
+There is slight variation in the magnitude of the standard errors, 
+particularly for the demerit-point categories of drivers who tend to get tickets. 
+The difference in standard errors only marginally affect the magnitude of the $t$-statistics, 
+which are well over the critical values at conventional levels of significance. 
+
+\input{../Tables/FE_regs_all_pts}
 
 
 
