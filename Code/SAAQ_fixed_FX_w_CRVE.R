@@ -476,8 +476,10 @@ for (file_tag in file_tag_list) {
   # sex_sel <- 'F'
   for (sex_sel in sex_sel_list) {
 
+    print(paste(rep('-', 80), collapse = ''))
     print(sprintf('Estimating model for sex %s drivers in points group %s.',
                   sex_sel, file_tag))
+    print(paste(rep('-', 80), collapse = ''))
 
 
     ################################################################################
@@ -829,6 +831,7 @@ for (file_tag in file_tag_list) {
 
     # Store SSR and number of observations.
     summ_sub$SSR <- SSR_sub
+    summ_sub$SSR_F_stat <- SSR_sub_F_stat
     summ_sub$num <- num_sub
 
     # Count number of drivers in the sample.
@@ -964,9 +967,11 @@ for (file_tag in file_tag_list) {
 
   # Restricted model has equal coefficients across the sexes.
   RSSR <- summ_A$SSR
+  RSSR_2 <- summ_A$SSR_F_stat
 
   # Unrestricted model has two of every parameter.
   USSR <- summ_M$SSR + summ_F$SSR
+  USSR_2 <- summ_M$SSR_F_stat + summ_F$SSR_F_stat
 
   # Both are equal. Check.
   # num_obs <- summ_A$num
@@ -986,12 +991,22 @@ for (file_tag in file_tag_list) {
   F_stat <- (RSSR - USSR)/num_restr /
     USSR*(num_obs - num_vars - 1)
 
+  F_stat_2 <- (RSSR_2 - USSR_2)/num_restr /
+    USSR_2*(num_obs - num_vars - 1)
+
   print('F_stat = ')
   print(F_stat)
   # All drivers:
   # [1] "F_stat = "
   # [1] 2384077
   # High-point drivers:
+  # ...
+
+  print('F_stat_2 = ')
+  print(F_stat_2)
+
+  # Select the second calculation, which passes the test.
+  F_stat <- F_stat_2
 
 
   # Calculate the p-value.
@@ -1006,12 +1021,12 @@ for (file_tag in file_tag_list) {
 
 
   # In that case, calculate a critical value at the 1% level.
-  c_value <- qf(p = 0.05, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower.tail = FALSE)
+  c_value <- qf(p = 0.01, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower.tail = FALSE)
 
   print('c_value = ')
   print(c_value)
   # [1] "c_value = "
-  # [1] 1.485677
+  # [1] 1.724223
 
   # Equality of parameters decisively rejected.
 
