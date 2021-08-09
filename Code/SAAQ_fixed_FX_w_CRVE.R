@@ -1165,9 +1165,11 @@ for (file_tag in file_tag_list) {
 
   # Adjust figure parameters for sample.
   if (file_tag == 'all_pts') {
-    ylim_fig <- c(-0.002, 0.002)
+    # ylim_fig <- c(-0.002, 0.002)
+    ylim_fig <- c(-0.006, 0.002)
   } else if (file_tag == 'high_pts') {
-    ylim_fig <- c(-0.005, 0.002)
+    # ylim_fig <- c(-0.005, 0.002)
+    ylim_fig <- c(-0.006, 0.002)
   }
 
 
@@ -1184,6 +1186,8 @@ for (file_tag in file_tag_list) {
   curr_pts_labels <- gsub('curr_pts_', '', curr_pts_labels)
   curr_pts_labels <- gsub('_policy', '', curr_pts_labels)
   curr_pts_labels <- gsub('_', '-', curr_pts_labels)
+  # For clarity, set the last categories to single numbers.
+  curr_pts_labels[11:13] <- c('20', '30', '>30')
 
   # FE_estimates[var_nums, c('CI_L_M', 'CI_U_M', 'CI_L_F', 'CI_U_F')]
 
