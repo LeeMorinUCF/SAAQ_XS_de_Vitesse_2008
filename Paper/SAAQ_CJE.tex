@@ -65,28 +65,37 @@ by age group.
 This set of models presents a simpler analysis (for the reader) since the demerit point balances are the only remaining variables that are not annihilated by the fixed effects.%
 \footnote{To avoid the problem with the uninteresting age variation, we redefined the age categories
 to represent the age of a driver on the date of the policy change.} 
-Since the only possible variables are the demerit point categories and the interactions with the policy change, 
-this analysis quickly establishes the result that the policy had a significant effect for males but a smaller, statistically insignificant effect for females. 
-For us, the authors, this is a fortunate outcome because it does not change the focus of our paper:
-the effect was significant for males but not females, 
-and the $F$-statistic strongly supports differences in parameter values by gender. 
-From this point on, we model separately by gender. 
-For drivers in these higher demerit point categories, the point estimates are similar for males and females, if one ignores the difference in significance. 
-We should also note that although the policy-demerit-point interactions are significant at conventional levels of significance, the $t$-statistics are not so large at the elevated levels we were using in the previous analysis. 
 
-Another consequence of these results, however, is that we must include or test policy interactions with demerit points groups in the regressions that follow. 
-My plan is that we show sets of results that are similar to those we had in the last draft 
-but we augment the list of control variables with any additional variables that show up in a model selection procedure. 
+Since the only possible variables are the demerit point categories and the interactions with the policy change, 
+this analysis quickly establishes the result that 
+the policy had a downward effect on the incidence of tickets but it was not statistically significant for the sample of all drivers.
+In contrast, for the sample of high-point drivers, the effects were all found to be significant.
+After accounting for individual driver-specific fixed effects, 
+the results were not materially different by gender. 
+%
+However, tests of the difference between parameters for males and females yielded different results. 
+The $F$-statistic strongly supports differences in parameter values by gender. 
+So, from this point on in the analysis, we can still model separately by gender, 
+which might very well be captured in the fixed effects
+but not in the other models. 
+%
+
+Another consequence of these results, however, is that we must include or, at least, test policy interactions with demerit points groups in the regressions that follow. 
+One way to do this is to create indicators for zero to six, seven to ten and ten and above categories for the full sample (see Figure \ref{fig:FE_regs_all_pts}). 
+My plan is that we show tables of results that are similar to those we had in the last draft 
+but we augment the list of control variables with any additional variables that show up in a simple model selection procedure. 
 
 
 I took Arthur's advice and split the dataset into training and testing samples, selecting by the driver serial number.  
-I didn't use the testing sample for the fixed effects regressions because most of the predictive value of the model comes from the driver-specific fixed effects, so it doesn't seem appropriate here. 
-This made the sample slightly smaller and more manageable to estimates several million parameters, of which the fixed effects regressions were calculated using the Frisch-Waugh-Lovell theorem. 
+I didn't use the testing sample for the fixed effects regressions because most of the predictive value of the model comes from the driver-specific fixed effects, so it doesn't seem appropriate there. 
+This made the sample slightly smaller and more manageable to estimate several million parameters, of which the fixed effects regressions were calculated using the Frisch-Waugh-Lovell theorem in first-stage regressions (read: deviations from average by driver). 
 
 One more change that I made was that I changed the definition of the drivers with high balances. 
 When I plotted the first versions of this graph, I saw a ``missing tooth'' in the 6- to 10-point range from our selection criteria, which was done using the sample before the policy change. 
-Partly to satisfy Arthur's enthusiasm for the high-point drivers, I changed this definition to include drivers who have ever had a balance 6 points or higher during the period 01 April 2004 to 31 March 2006, which is the four-year period before the sample,  so that none of the tickets that were counted in those balances were included in the dataset. 
-I think this is an adjustment that had to be made, given what the old version looked like in this model. 
+Partly to satisfy Arthur's enthusiasm for the high-point drivers, I changed this definition to include drivers who have ever had a balance 6 points or higher during the period 01 April 2002 to 31 March 2006, which is the four-year period before the sample,  so that none of the tickets that were counted in those balances were included in the dataset. 
+I think this is an adjustment that had to be made, given what the old version of Figure 1 looked like in this model. 
+It also mitigates Arthur's concern about selecting subsamples based on endogenous variables:
+we select based on past values before the sample period. 
 
 Overall, I think our new abstract should say something to this effect: 
 ``We find that the policy worked well overall, the effects were larger for the drivers most likely to engage in excessive speeding: males more than females, younger more than older drivers, drivers with prior demerit points more than those without, and especially for the drivers who have had high demerit-point balances.'' 
@@ -104,42 +113,54 @@ econometric models that can be computed with frequency-weighted observations.
 Drivers rarely get tickets, so that most observations represent zero tickets, 
 resulting in many thousands of equivalent observations with many similar drivers 
 receiving no ticket on a given day. 
-Furthermore, we observe many instances in which several drivers
-who all get a tickets with the same point value on a particular day, 
+Furthermore, we observe many instances in which several drivers 
+get tickets with the same point value on a particular day, 
 all of whom are in a single category, 
 e.g. all males, aged 20-24, with two demerit points on their driving record. 
 
 In a later section, we will analyze the data after aggregating across individuals, by grouping over the date. 
-In this format, the observations for each day will include a listing of the number of drivers with identical characteristics who get a ticket of the same point value on each day. 
+In this format, the observations for each day will include a listing of the number of drivers with identical characteristics who get a ticket of the same point value, if any, on each day. 
 This allows for an analysis of the changes in driving behaviour with respect to 
-the characteristics of individual drivers, such as age and gender, which will turn out to be important. 
+the characteristics of individual drivers, such as age and gender, which turn out to be important. 
 This aggregation method also retains the effects of seasonality in the form of monthly and weekday indicators. 
 
 In contrast, our first approach aggregates over time and groups the data by individual driver number. 
 With this data, we estimate fixed effects for the individual drivers, which accounts for all the variation explained by age, sex and other unobserved heterogeneity between the drivers.
-The demerit point level is the only remaining variable that varies over time for a particular driver. 
+The demerit point level is the only remaining variable that changes over time for a particular driver. 
 % 
 This categorical variable is defined as the sum of all points on tickets that a driver has received within the last two years. 
-Is is designed to reflect the demerit points that remain on a particular driver's record, 
+It is designed to reflect the demerit points that remain on a particular driver's record, 
 which is taken into account when this balance reaches thresholds to warrant suspension or revocation of the driver's license. 
-We calculate this balance including the two-year period before the sample start date of 01 April 2006, to ensure that the measurement is consistent across drivers. 
+We calculate this balance including the two-year period before the sample start date of 01 April 2006, to ensure that the measurement is consistent across drivers and throughout the sample. 
 
-As an example, a driver who gets one ticket during the sample might have 100 days with zero 
-demerit points, followed by one ticket with two points, and carry that balance of two points for 730 days, until their point balance reverts to zero for the remainder of the sample. 
-This driver will be recorded with zero demerit points and zero tickets with a frequency of 100. 
+\input{../Tables/FE_regs_CRVE_all_pts}
+
+As an example, consider a driver who gets one ticket during the sample on day 101 of the sample period. 
+This driver would have 100 days with zero demerit points, 
+followed by one ticket with two points, 
+and carry that balance of two points for 730 days, 
+until the driver's point balance reverts to zero for the remainder of the sample. 
+This driver will be recorded with zero demerit points and zero tickets with a frequency of 100, 
+at the beginning of the sample. 
 This is followed by one observation with zero demerit points and a two-point ticket. 
-The driver then has two demerit points but no ticket observed with frequency 730. 
-Finally, the driver again has zero demerit points and zero tickets for the remainder of the sample.%
-\footnote{Strictly speaking, we also include zero-point non-events in the sample
+The driver then has two demerit points but no ticket observed with frequency 730.%
+%
+\footnote{Strictly speaking, we also include zero-point dummy events in the sample
 to separate the number of days within certain important thresholds in the data. 
-These events are included on the dates 01 April 2006, 01 April 2008 and 31 March 2010. 
-Inclusion of these dates ensures that the number of dates are aggregated separately across 
-different periods in the sample, to impose an equal number of days in the two-year periods before and after the policy change on 01 April 2008. }
+These events are excluded from the analysis but are used to indicate 
+the dates 01 April 2006, 01 April 2008 and 31 March 2010. 
+Using these markers on these dates ensures that the number of driver days are aggregated separately across 
+different periods in the sample, to impose an equal number of days in the two-year periods before and after the policy change on 01 April 2008. 
+The result is that the driver spends the first 265 of 730 days with two demerit points and zero tickets in the pre-policy period, 
+and the remaining 465 days with two demerit points and zero tickets in the post-policy period.} 
+% 
+Finally, the driver again has zero demerit points and zero tickets for the 630 days in the remainder of the sample.
+%
 The calculation is slightly more complicated for drivers who receive several tickets over the sample, 
 except that the observations are split into more distinct categories. 
 In all cases, the demerit point balance is represented by a step function with many repeated observations. 
 We record demerit points in integers from zero to ten and collect the drivers with higher balances
-into categories of 11-20, 31-30, and 30 or more demerit points. 
+into categories of 11-20, 21-30, and 30 or more demerit points. 
 
 
 \subsection*{All Drivers (with both high and low past demerit points)}
@@ -147,33 +168,29 @@ into categories of 11-20, 31-30, and 30 or more demerit points.
 We estimated the fixed effects model with indicators for each demerit point category
 and the interactions of these demerit point indicators with the period after the policy change. 
 We performed the estimation using a training sample of seventy percent of the drivers in the sample.%
-\footnote{The remaining sample is reserved as a testing sample for further model specification searches, for the models with other variables besides the demerit point balances. }
+\footnote{The remaining sample is reserved as a testing sample for further model specification searches, for the models with other variables besides the demerit point balances. 
+Since the fixed effects represent most of the predictive value, 
+and are only estimated for the particular drivers in the training sample, 
+we did not validate the fixed effects model out of sample. }
 The estimation results are shown in Table \ref{tab:FE_regs_CRVE_all_pts}. 
 % 
-Note that the indicator is missing for the category of drivers with more than thirty demerit points, 
-aside from the corresponding policy interaction because the sample contains no drivers with such high point balances before the policy change. 
+Note that the indicator is missing for the category of drivers with zero demerit points, 
+which is the benchmark group.
 % 
 
-\input{../Tables/FE_regs_CRVE_all_pts}
 
-The coefficients on the indicators for demerit point categories are largely insignificant for all samples considered in Table \ref{tab:FE_regs_all_pts}. 
-This may reflect the fact that as drivers accumulate points, they reveal their innate tendency to drive quickly and also incur the deterrent effect of the threat of penalties associated with a high demerit point balance. 
-In contrast, after the increase in penalties, there exists a deterrent effect that increases with the demerit point balance. 
-The point estimates of this effect are similar for male and female drivers, 
-but the coefficients are not significantly different from zero for the female population. 
-Regardless, the results in Table \ref{tab:FE_regs_all_pts} indicate that the deterrent effect
-for the harsher penalties is more pronounced for drivers who tend to exceed the speed limit. 
+% \textbf{Must revise results to match:}
 
-
-To compare the difference in statistical significance with without the cluster-robust standard error estimates, 
-refer to the estimates in Table \ref{tab:FE_regs_all_pts}. 
-There is slight variation in the magnitude of the standard errors, 
-particularly for the demerit-point categories of drivers who tend to get tickets. 
-The difference in standard errors only marginally affect the magnitude of the $t$-statistics, 
-which are well over the critical values at conventional levels of significance. 
-
-\input{../Tables/FE_regs_all_pts}
-
+The coefficients on the indicators for demerit point categories are largely insignificant for all samples considered in Table \ref{tab:FE_regs_CRVE_all_pts}, 
+along with the coefficients for the interaction terms. 
+%This may reflect the fact that as drivers accumulate points, they reveal their innate tendency to drive quickly and also incur the deterrent effect of the threat of penalties associated with a high demerit point balance. 
+%In contrast, after the increase in penalties, there exists a deterrent effect that increases with the demerit point balance. 
+The point estimates of these effects, however, are similar for male and female drivers, 
+and the coefficients are largely increasing in the number of demerit points. 
+% but the coefficients are not significantly different from zero for the female population. 
+%Regardless, the results in Table \ref{tab:FE_regs_CRVE_all_pts} indicate that the deterrent effect
+%for the harsher penalties is more pronounced for drivers who tend to exceed the speed limit. 
+% This suggests that drivers with demerit points. 
 
 
 % We also conducted an $F$-test of the restriction that the parameters are the same 
@@ -181,77 +198,162 @@ which are well over the critical values at conventional levels of significance.
 \input{../Text/FE_regs_F_stat_all_pts}
 
 
-In Figure \ref{fig:FE_regs_all_pts}, the estimated coefficients are plotted separately for male and female drivers. 
-Point estimates of the policy effect by demerit point balance are shown for male drivers with black lines and female drivers with grey lines. 
-The upper and lower 95\% confidence bounds are shown with dashed lines of the same colour. 
-The solid lines indicate a similar point estimate for drivers of either gender but one that is estimated with more variability for female drivers. 
-For both sets of drivers, it is clear that the policy change had a stronger effect for drivers with 
-higher demerit point balances, and an especially strong effect on drivers with more than ten demerit points. 
-
-
 
 \begin{figure}
 \centering
 \includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp_all_pts.pdf}
-\caption{Policy change and demerit points group interactions (all drivers)}
-%Coefficients on the interaction term between the change in the policy 
-%by the current demerit points category of each driver.
-%Estimates were calculated by fitting a fixed effects regression model, 
-%with intercept coefficients for each driver. 
-%% 
-%Policy effects for male drivers are shown in black and those for females are shown in grey. 
-%% 
-%The dashed lines indicate upper and lower 95\% confidence intervals. }
-% 
-\label{fig:FE_regs_all_pts}
+\caption{Policy change and demerit points group interactions (all drivers).
+Solid lines represent the policy effect for drivers for each demerit-point category, 
+calculated as the sum of the policy indicator and the interaction of the  indicators for the policy change 
+and the demerit point category.  
+Males drivers are represented by black lines and female drivers with grey. 
+Dashed lines represent 95\% confidence intervals, 
+calculated using cluster-robust standard errors, clustered on individual drivers. 
+All estimates were calculated by fitting a fixed effects regression model, 
+with intercept coefficients for each driver. 
+}\label{fig:FE_regs_all_pts}
 \end{figure}
+
+
+
+Aside from the coefficients taken separately, the net effect of the policy indicator and the interaction of the policy 
+indicator with the points group indicator is perhaps of more importance. 
+In Figure \ref{fig:FE_regs_all_pts}, we plotted the sum of the coefficients for these interactions and the policy indicator for male and female drivers. 
+We also plot 95\% confidence intervals for each sum of coefficients, 
+for which the standard errors are calculated using the standard formula to take into account the variance of both coefficients and the covariance of the two.  
+The standard errors of the individual coefficients are calculated with the cluster-robust variance estimator, 
+in which the clusters are taken to be the individual drivers. 
+
+For the net of the policy effect and the interaction, the relationship appears more clear. 
+Not much difference is apparent, whether for male or female drivers, with six or fewer demerit points, 
+and the effect is only slightly stronger for drivers with between seven and ten demerit points. 
+For drivers with more than ten demerit points, however, the relationship is much more pronounced. 
+Drivers with ten to twenty demerit points are expected to get two fewer tickets per thousand driver days
+under the excessive speeding legislation. 
+For drivers with more than thirty demerit points, 
+this number is as high as four tickets per thousand days---slightly more than one ticket per year---%
+after the policy change. 
+
+
+
+
+To compare the difference in statistical significance with and without the cluster-robust standard error estimates, 
+refer to the estimates in Table \ref{tab:FE_regs_all_pts}. 
+%There is slight variation in the magnitude of the standard errors, 
+%particularly for the demerit-point categories of drivers who tend to get tickets. 
+%The difference in standard errors only marginally affect the magnitude of the $t$-statistics, 
+%which are well over the critical values at conventional levels of significance. 
+The standard errors calculated without clustering are much smaller, 
+indicating that there is substantial dependence on the particular driver. 
+In other words, when considering the entire sample of drivers, 
+the assumption of independence of trials between drivers is not supported by the data.%
+\footnote{For this reason, when we analyze the data aggregated over drivers by time period, 
+we will use elevated levels of significance. Because we're smart. }
+
+\input{../Tables/FE_regs_all_pts}
+
+
+%In Figure \ref{fig:FE_regs_all_pts}, the estimated coefficients are plotted separately for male and female drivers. 
+%Point estimates of the policy effect by demerit point balance are shown for male drivers with black lines and female drivers with grey lines. 
+%The upper and lower 95\% confidence bounds are shown with dashed lines of the same colour. 
+%The solid lines indicate a similar point estimate for drivers of either gender but one that is estimated with more variability for female drivers. 
+%For both sets of drivers, it is clear that the policy change had a stronger effect for drivers with 
+%higher demerit point balances, and an especially strong effect on drivers with more than ten demerit points. 
+
+
 
 
 \clearpage
 \pagebreak
 \subsection*{High-Point Drivers}
 
+We then studied the sample that is restricted to drivers with a history of getting tickets. 
+We calculated balances of demerit points over rolling windows of two-year periods 
+in the sample before the four-year window around the policy change. 
+This way, we calculated 
+the number of demerit points on each driver's record over the past two years, 
+for all days from 01 April 2002 to 31 March 2006, which is the four-year period before the sample. 
+Using this approach, we ensure that none of the tickets that were counted in those balances were included in the dataset for the regression model. 
+We defined the sample of high-point drivers to include all drivers with six or more points during this pre-sample period. 
 
+Table \ref{tab:FE_regs_CRVE_all_pts} shows the regression results for the fixed effects model 
+with cluster-robust standard errors. 
+In this subsample, the slope coefficients are similar to those from the full sample, 
+and the results are similar across male and female drivers. 
+In this sample of actively speeding drivers, there is much less variation and the coefficients are more precisely estimated, 
+as the standard errors are much smaller. 
+Drivers tend to get fewer tickets as they accumulate demerit points and approach thresholds for harsher penalties, 
+including license suspension. 
+These effects are even stronger for drivers after the policy change. 
+In contrast to the result for the sample of all drivers, 
+in this sample the policy-demerit-point interactions are all statistically significant 
+at conventional levels of significance. 
+Thus, the policy effects differ significantly for drivers with demerit points than for those who 
+currently have no demerit points but who did have many points in the past. 
 
 
 \input{../Tables/FE_regs_CRVE_high_pts}
+
 
 \input{../Text/FE_regs_F_stat_high_pts}
 
 
 
+%\clearpage
+%\pagebreak
 
-To compare the difference in statistical significance with without the cluster-robust standard error estimates, 
-refer to the estimates in Table \ref{tab:FE_regs_high_pts}. 
-There is slight variation in the magnitude of the standard errors, 
-particularly for the demerit-point categories of drivers who tend to get tickets. 
-The difference in standard errors only marginally affect the magnitude of the $t$-statistics, 
-which are well over the critical values at conventional levels of significance. 
 
-\input{../Tables/FE_regs_high_pts}
+Now consider the net effect of the policy indicator and the interaction of the policy 
+indicator with the points group indicator, in Figure \ref{fig:FE_regs_high_pts}. 
+First of all, the effects are very similar for males and females, aside from a slight difference among 
+drivers with nine demerit points. 
+Perhaps more striking is how narrow the confidence intervals are for drivers with a past record of demerit points. 
+The policy effect is not very strong for drivers with three points or less but this 
+relationship declines steadily for drivers with more demerit points. 
+As with the full sample of drivers, the relationship takes a sharp downturn for drivers
+with more than ten points. 
+The level of the effect is similar to that measure on the sample of drivers with all point levels:
+from a decrease of one ticket every three years to one ticket per year. 
+
+
 
 
 
 \begin{figure}
 \centering
 \includegraphics[width=0.8\textwidth]{../Figures/FFX_reg_policy_points_grp_high_pts.pdf}
-\caption{Policy change and demerit points group interactions (drivers with high demerit points)}
-%Coefficients on the interaction term between the change in the policy 
-%by the current demerit points category of each driver.
-%Estimates were calculated by fitting a fixed effects regression model, 
-%with intercept coefficients for each driver. 
-%% 
-%Policy effects for male drivers are shown in black and those for females are shown in grey. 
-%% 
-%The dashed lines indicate upper and lower 95\% confidence intervals. }
-% 
-\label{fig:FE-regs}
+\caption{
+Policy change and demerit points group interactions (drivers with high demerit points).
+Solid lines represent the policy effect for drivers for each demerit-point category, 
+calculated as the sum of the policy indicator and the interaction of the  indicators for the policy change 
+and the demerit point category.  
+Males drivers are represented by black lines and female drivers with grey. 
+Dashed lines represent 95\% confidence intervals, 
+calculated using cluster-robust standard errors, clustered on individual drivers. 
+All estimates were calculated by fitting a fixed effects regression model, 
+with intercept coefficients for each driver. 
+}\label{fig:FE_regs_high_pts}
 \end{figure}
 
 
 
+% \textbf{Arthur should be tickled pink to see this figure, since it checks all his boxes. }
 
 
+\input{../Tables/FE_regs_high_pts}
+
+
+
+Again, to compare the difference in statistical significance with and without 
+the cluster-robust standard error estimates, 
+refer to the estimates in Table \ref{tab:FE_regs_high_pts}. 
+For this sample, there is only slight variation in the magnitude of the standard errors, 
+particularly for the demerit-point categories of drivers who tend to get a moderate number of tickets. 
+The difference in standard errors only marginally affects the magnitude of the $t$-statistics, 
+which are well over the critical values at conventional levels of significance. 
+This suggests that the trials between different drivers, all of whom have had high demerit-point balances, 
+can be treated as independent trials with little loss of accuracy in this subsample. 
+This suggests a lower degree of heterogeneity among drivers who tend to get tickets. 
 
 
 \end{document}

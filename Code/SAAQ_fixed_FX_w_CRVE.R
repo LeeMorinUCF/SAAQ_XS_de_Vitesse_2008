@@ -513,18 +513,18 @@ for (file_tag in file_tag_list) {
     # Estimate fixed effects regression
     #--------------------------------------------------------------------------------
 
-#
-#     # First variable is the policy indicator,
-#     # projected off the fixed effects indicators.
-#     var_list_0 <- c('dev_policy')
-#
-#     # Set the list of variables by points category.
-#     # Assumes first points category omitted:
-#     var_list_1 <- sprintf('curr_pts_%s',
-#                           gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
-#     var_list_2 <- sprintf('curr_pts_%s_policy',
-#                           gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
-#     var_list <- c(var_list_0, var_list_1, var_list_2)
+
+    # # First variable is the policy indicator,
+    # # projected off the fixed effects indicators.
+    # var_list_0 <- c('dev_policy')
+    #
+    # # Set the list of variables by points category.
+    # # Assumes first points category omitted:
+    # var_list_1 <- sprintf('curr_pts_%s',
+    #                       gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+    # var_list_2 <- sprintf('curr_pts_%s_policy',
+    #                       gsub('-', '_', curr_pts_grp_list[2:length(curr_pts_grp_list)]))
+    # var_list <- c(var_list_0, var_list_1, var_list_2)
 
     # # Eliminate the constant term.
     # fmla_str <- sprintf('dev_events ~ 0 + %s',
@@ -722,7 +722,8 @@ for (file_tag in file_tag_list) {
 
     # Compare with the standard standard errors.
     # CRVE_SE/summ_sub$coefficients[, c('Std. Error')]
-    CRVE_SE/summ_sub_coef[, c('Std. Error')]
+    # CRVE_SE/summ_sub_coef[, c('Std. Error')]
+    CRVE_SE/summ_sub_coef_FE[, c('Std. Error')]
 
     # Adjust the table of coefficients
     # for adjusted standard errors in the fixed effects model.
@@ -752,7 +753,12 @@ for (file_tag in file_tag_list) {
                                       num_vars = length(var_list),
                                       num_FE = num_drivers)
     lm_FE_cov <- lm_cov*lm_FE_cov_adj^2
+    # Note that this covers standard errors calculated using the standard method.
+    # Strictly speaking, it is not required for the main analysis with the CRVE.
 
+    # sqrt(diag(lm_FE_cov))
+    # summ_sub_coef_FE[, c('Std. Error')]
+    # sqrt(diag(lm_FE_cov)) / summ_sub_coef_FE[, c('Std. Error')]
 
     #--------------------------------------------------------------------------------
     # Calculate and Store Postestimation Statistics
@@ -1007,7 +1013,12 @@ for (file_tag in file_tag_list) {
 
   # Select the second calculation, which passes the test.
   F_stat <- F_stat_2
-
+  RSSR <- RSSR_2
+  USSR <- USSR_2
+  # Replace for the tables of statistics.
+  summ_A$SSR <- summ_A$SSR_F_stat
+  summ_M$SSR <- summ_M$SSR_F_stat
+  summ_F$SSR <- summ_F$SSR_F_stat
 
   # Calculate the p-value.
   p_value <- pf(q = F_stat, df1 = num_restr, df2 = (num_obs - num_vars - 1), lower.tail = FALSE)
@@ -1198,7 +1209,7 @@ for (file_tag in file_tag_list) {
   pdf(fig_filename)
 
   # Plot total policy effect by points group.
-  plot(1:n_vars, FE_estimates[n_vars_L:n_vars_U, 'Est_M'] +
+  plot(1:n_vars, FE_estimates[var_nums, 'Est_M'] +
          FE_estimates['dev_policy', 'Est_M'],
        xlab = 'Demerit Point Category',
        ylab = 'Policy Effect',
@@ -1273,7 +1284,8 @@ for (file_tag in file_tag_list) {
     caption <- 'Fixed effects regression models (drivers with high demerit-point balances)'
   }
   description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.',
-                   'Samples are drawn by randomly selecting seventy per cent of the drivers.')
+                   'Samples are drawn by randomly selecting seventy per cent of the drivers.',
+                   'For readability, all coefficients and standard errors were multiplied by 1,000.')
   label <- sprintf('tab:FE_regs_%s', file_tag)
 
 
@@ -1420,7 +1432,8 @@ for (file_tag in file_tag_list) {
   description <- c('Fixed effects regression coefficients after estimating driver-specific intercept coefficients.',
                    'Samples are drawn by randomly selecting seventy percent of the drivers.',
                    'Standard errors were calculated using the cluster-robust covariance matrix estimator,',
-                   'clustering on the individual driver.')
+                   'clustering on the individual driver.',
+                   'For readability, all coefficients and standard errors were multiplied by 1,000.')
   label <- sprintf('tab:FE_regs_CRVE_%s', file_tag)
 
 
