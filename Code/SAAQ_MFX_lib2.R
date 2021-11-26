@@ -61,7 +61,7 @@ mfx_mat_calc <- function(saaq_data,
     mfx_fmla <- as.formula(sprintf('num ~ %s',
                                    paste(mfx_fmla_list, collapse = ' + ')))
     saaq_data_pred <- aggregate(formula = mfx_fmla,
-                                data = saaq_data[sel_obs, ],
+                                data = saaq_data[sel_obsn == TRUE, ],
                                 FUN = sum)
 
     # Assign difference to AME.
@@ -192,10 +192,12 @@ mfx_mat_calc <- function(saaq_data,
         mfx_month_sel <- sprintf('policy%s', policy_num_str)
         mfx_sel_obs <- sel_obs & saaq_data[, 'policy_month'] == mfx_month_sel
       }
+      saaq_data[, 'mfx_sel_obsn'] <- mfx_sel_obs
+
 
 
       saaq_data_pred <- aggregate(formula = mfx_fmla,
-                                  data = saaq_data[mfx_sel_obs, ],
+                                  data = saaq_data[mfx_sel_obsn == TRUE, ],
                                   FUN = sum)
 
       # Assign difference to AME.
@@ -261,8 +263,10 @@ mfx_mat_calc <- function(saaq_data,
 
       mfx_age_sel <- age_grp_list[mfx_age_num]
       mfx_sel_obs <- sel_obs & saaq_data[, 'age_grp'] == mfx_age_sel
+      saaq_data[, 'mfx_sel_obsn'] <- mfx_sel_obs
+
       saaq_data_pred <- aggregate(formula = mfx_fmla,
-                                  data = saaq_data[mfx_sel_obs, ],
+                                  data = saaq_data[mfx_sel_obsn == TRUE, ],
                                   FUN = sum)
 
       # Set value of policy variable.
