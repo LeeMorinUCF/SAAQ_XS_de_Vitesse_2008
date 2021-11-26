@@ -10,10 +10,10 @@
 # Lealand Morin, Ph.D.
 # Assistant Professor
 # Department of Economics
-# College of Business Administration
+# College of Business
 # University of Central Florida
 #
-# March 5, 2021
+# November 26, 2021
 #
 ################################################################################
 #
@@ -251,6 +251,7 @@ colnames(saaq_data)
 
 sapply(saaq_data, class)
 
+
 ################################################################################
 # Define additional variables
 ################################################################################
@@ -287,8 +288,12 @@ summary(saaq_data)
 table(saaq_data[, 'age_grp'], useNA = 'ifany')
 
 # Age groups already consolidated in data prep.
+class(saaq_data[, age_grp])
+age_grp_list <- levels(saaq_data[, age_grp])
 
-# # age_grp_list <- levels(saaq_data[, 'age_grp'])
+
+# Otherwise, consolidate age group categories.
+# age_grp_list <- levels(saaq_data[, 'age_grp'])
 # orig_age_grp_list <- unique(saaq_data[, 'age_grp'])
 # saaq_data[, 'age_grp_orig'] <- saaq_data[, 'age_grp']
 # age_grp_list <- c(orig_age_grp_list[seq(7)], '65-199')
@@ -428,7 +433,7 @@ estn_version <- 12
 #------------------------------------------------------------
 # Sensitivity Analysis: High-point drivers.
 # (with monthly and weekday seasonality)
-# spec_group <- 'high_pts' # 3 NAs w QMLE
+# spec_group <- 'high_pts'
 # estn_version <- 13
 #------------------------------------------------------------
 
@@ -450,6 +455,8 @@ estn_version <- 12
 # estn_version <- 16
 #------------------------------------------------------------
 
+
+# source(reg_lib_path)
 
 model_list <- model_spec(spec_group,
                          sex_list, age_grp_list, age_int_list,
@@ -494,6 +501,7 @@ est_QMLE_SEs <- FALSE
 # Run estimation in a loop on the model specifications.
 #------------------------------------------------------------
 
+# source(reg_lib_path)
 
 # Initialize data frame to store estimation results.
 estn_results <- NULL
@@ -536,8 +544,13 @@ for (estn_num in 1:nrow(model_list)) {
   # Calculate variables specific to the model specification.
   #--------------------------------------------------
 
-  saaq_data_prep(saaq_data)
-  sel_obs <- saaq_data[, 'sel_obsn']
+  saaq_data <- saaq_data_prep(saaq_data,
+                              window_sel,
+                              past_pts_sel,
+                              sex_sel,
+                              age_int, age_grp_list,
+                              pts_target)
+  # sel_obs <- saaq_data[, 'sel_obsn']
 
 
   #--------------------------------------------------
@@ -563,7 +576,7 @@ for (estn_num in 1:nrow(model_list)) {
     # Estimating a Linear Probability Model
 
     # Estimate the model accounting for the aggregated nature of the data.
-    agg_lm_model_1 <- agg_lm(data = saaq_data[sel_obs, ], weights = num,
+    agg_lm_model_1 <- agg_lm(data = saaq_data[sel_obsn == TRUE, ], weights = num,
                              formula = fmla, x = TRUE)
     summ_agg_lm <- summary_agg_lm(agg_lm_model_1)
 
@@ -575,13 +588,13 @@ for (estn_num in 1:nrow(model_list)) {
     est_coefs <- summ_model$coef_hccme
 
     # # Checking for negative LPM predictions.
-    # lpm_neg_check(lm(data = saaq_data[sel_obs, ], weights = num,
+    # lpm_neg_check(lm(data = saaq_data[sel_obsn == TRUE, ], weights = num,
     #                  formula = chosen_model))
 
   } else if (reg_type == 'Logit') {
 
     # Estimate logistic regression model.
-    log_model_1 <- glm(data = saaq_data[sel_obs, ], weights = num,
+    log_model_1 <- glm(data = saaq_data[sel_obsn == TRUE, ], weights = num,
                        formula = fmla,
                        family = 'binomial')
 
@@ -596,8 +609,8 @@ for (estn_num in 1:nrow(model_list)) {
       # Calculate sandwich SE estimator for QMLE.
 
       est_coefs <- est_coefs_QMLE(V,
-                                  y = as.integer(saaq_data[sel_obs, 'events']),
-                                  num_weights = saaq_data[sel_obs, 'num'],
+                                  y = as.integer(saaq_data[sel_obsn == TRUE, 'events']),
+                                  num_weights = saaq_data[sel_obsn == TRUE, 'num'],
                                   p = fitted(log_model_1),
                                   X = model.matrix(log_model_1))
 
@@ -622,6 +635,8 @@ for (estn_num in 1:nrow(model_list)) {
                             window_sel,
                             sex_sel,
                             age_int, age_grp_list)
+  } else {
+    mfx_mat <- NA
   }
 
 
@@ -640,7 +655,7 @@ for (estn_num in 1:nrow(model_list)) {
   #--------------------------------------------------
 
   estn_results_sub <- estn_results_table(est_coefs, estn_num,
-                                         num_obs = sum(saaq_data[sel_obs, 'num']),
+                                         num_obs = sum(saaq_data[sel_obsn == TRUE, 'num']),
                                          reg_type, mfx_mat,
                                          age_int, age_grp_list, window_sel)
 

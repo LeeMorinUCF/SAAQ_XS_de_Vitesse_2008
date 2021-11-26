@@ -61,9 +61,14 @@ model_spec <- function(spec_group,
                               seasonality = c('mnwk'),
                               age_int = age_int_list,
                               pts_target = pts_target_list,
-                              # sex = c('Male', 'Female'),
-                              sex = sex_list,
+                              sex = c('Male', 'Female'),
+                              # sex = sex_list,
                               reg_type = reg_list)
+
+    # Remove some unnecessary combinations.
+    model_list <- model_list[model_list[, 'pts_target'] == 'all' |
+                               (model_list[, 'pts_target'] != 'all' &
+                                  model_list[, 'age_int'] == 'no'), ]
 
   } else if (spec_group == 'high_pts') {
 
@@ -77,7 +82,8 @@ model_spec <- function(spec_group,
                               # past_pts = c('all'),
                               window = c('4 yr.'),
                               seasonality = c('mnwk'),
-                              age_int = age_int_list,
+                              # age_int = age_int_list,
+                              age_int = 'no',
                               # pts_target = c('all'),
                               pts_target = pts_target_list,
                               sex = c('Male', 'Female'),
@@ -114,7 +120,8 @@ model_spec <- function(spec_group,
     model_list <- expand.grid(past_pts = c('all'),
                               window = c('Monthly 4 yr.'),
                               seasonality = c('mnwk'),
-                              age_int = age_int_list,
+                              # age_int = age_int_list,
+                              age_int = 'no',
                               # pts_target = pts_target_list,
                               pts_target = 'all',
                               sex = c('Male', 'Female'),
@@ -278,8 +285,8 @@ saaq_data_prep <- function(saaq_data,
   if (window_sel == '4 yr.' | window_sel == 'Monthly 4 yr.') {
 
     # Select symmetric window around the policy change.
-    saaq_data[, 'window'] <- saaq_data[, 'dinf'] >= '2006-04-01' &
-      saaq_data[, 'dinf'] <= '2010-03-31'
+    saaq_data[, 'window'] <- saaq_data[, 'date'] >= '2006-04-01' &
+      saaq_data[, 'date'] <= '2010-03-31'
 
     # Set date of policy change.
     april_fools_date <- '2008-04-01'
@@ -288,8 +295,8 @@ saaq_data_prep <- function(saaq_data,
   } else if (window_sel == '2 yr.') {
 
     # Select two-year symmetric window around the policy change.
-    saaq_data[, 'window'] <- saaq_data[, 'dinf'] >= '2007-04-01' &
-      saaq_data[, 'dinf'] <= '2009-03-31'
+    saaq_data[, 'window'] <- saaq_data[, 'date'] >= '2007-04-01' &
+      saaq_data[, 'date'] <= '2009-03-31'
 
     # Set date of policy change.
     april_fools_date <- '2008-04-01'
@@ -299,8 +306,8 @@ saaq_data_prep <- function(saaq_data,
 
     # Select symmetric window around the placebo change.
     # Year before (2007):
-    saaq_data[, 'window'] <- saaq_data[, 'dinf'] >= '2006-04-01' &
-      saaq_data[, 'dinf'] <= '2008-03-31'
+    saaq_data[, 'window'] <- saaq_data[, 'date'] >= '2006-04-01' &
+      saaq_data[, 'date'] <= '2008-03-31'
 
     # Set date of placebo policy change.
     april_fools_date <- '2007-04-01'
@@ -316,7 +323,7 @@ saaq_data_prep <- function(saaq_data,
   #--------------------------------------------------
 
   # policy date depends on the model specification (e.g. placebo).
-  saaq_data[, 'policy'] <- saaq_data[, 'dinf'] >= april_fools_date
+  saaq_data[, 'policy'] <- saaq_data[, 'date'] >= april_fools_date
 
 
   #--------------------------------------------------
@@ -326,50 +333,50 @@ saaq_data_prep <- function(saaq_data,
   if (window_sel == 'Monthly 4 yr.') {
     # Two definitions:
     saaq_data[, 'policy_month'] <- NA
-    saaq_data[saaq_data[, 'dinf'] < april_fools_date, 'policy_month'] <- "policyFALSE"
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] >= as.Date('2009-04-01'), 'policy_month'] <- "policyFALSE"
+    saaq_data[saaq_data[, 'date'] < april_fools_date, 'policy_month'] <- "policyFALSE"
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] >= as.Date('2009-04-01'), 'policy_month'] <- "policyFALSE"
     # First definition: Policy and month of year (yes, confusing but easy).
-    # saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-    #             saaq_data[, 'dinf'] < as.Date('2009-04-01'), 'policy_month'] <-
-    #   sprintf("policy%s", saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-    #                                   saaq_data[, 'dinf'] < as.Date('2009-04-01'), 'month'])
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01'), 'policy_month'] <-
+    #   sprintf("policy%s", saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #                                   saaq_data[, 'date'] < as.Date('2009-04-01'), 'month'])
     # Second definition: Policy and month of year (yes, confusing but easy).
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '04', 'policy_month'] <- 'policy01'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '05', 'policy_month'] <- 'policy02'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '06', 'policy_month'] <- 'policy03'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '07', 'policy_month'] <- 'policy04'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '08', 'policy_month'] <- 'policy05'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '09', 'policy_month'] <- 'policy06'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '10', 'policy_month'] <- 'policy07'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '11', 'policy_month'] <- 'policy08'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '12', 'policy_month'] <- 'policy09'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '01', 'policy_month'] <- 'policy10'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '02', 'policy_month'] <- 'policy11'
-    saaq_data[saaq_data[, 'dinf'] >= april_fools_date &
-                saaq_data[, 'dinf'] < as.Date('2009-04-01') &
+    saaq_data[saaq_data[, 'date'] >= april_fools_date &
+                saaq_data[, 'date'] < as.Date('2009-04-01') &
                 saaq_data[, 'month'] == '03', 'policy_month'] <- 'policy12'
     # In either case, transform it into factor.
     saaq_data[, 'policy_month'] <- factor(saaq_data[, 'policy_month'],
@@ -485,6 +492,7 @@ saaq_data_prep <- function(saaq_data,
 
 
   #--------------------------------------------------
+  return(saaq_data)
 
 
 }
@@ -494,7 +502,7 @@ saaq_data_prep <- function(saaq_data,
 # Set formula for regression model
 ############################################################
 
-reg_varlist <- function(sex_sel,
+reg_var_list <- function(sex_sel,
                      window_sel,
                      age_int, age_grp_list,
                      season_incl) {
@@ -541,7 +549,7 @@ reg_varlist <- function(sex_sel,
   }
 
 
-  return(varlist)
+  return(var_list)
 }
 
 
@@ -639,60 +647,58 @@ estn_results_table <- function(est_coefs, estn_num,
                      c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
 
 
-  }
+    if ((age_int %in% c('no', age_grp_list)) &
+        !(window_sel == 'Monthly 4 yr.')) {
+      # # Only policy MFX required for tables.
+      # estn_results_sub[estn_results_sub[, 'Variable'] == 'policyTRUE',
+      #                  c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
+
+
+    } else if ((age_int == 'with') &
+               !(window_sel == 'Monthly 4 yr.')) {
+      # # Both policy and policy-age MFX required for tables.
+      # estn_results_sub[estn_results_sub[, 'Variable'] == 'policyTRUE',
+      #                  c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
+      # estn_results_sub[
+      #   substr(estn_results_sub[, 'Variable'], 1, 18) == 'policyTRUE:age_grp',
+      #   c('AME', 'MER')] <- mfx_mat[2:nrow(mfx_mat), c('AME', 'MER')]
+
+      # Base it on contents of model and mfx_mat.
+      estn_row_sel <-
+        substr(estn_results_sub[, 'Variable'], 1, 18) == 'policyTRUE:age_grp'
+      mfx_row_sel <- substr(rownames(mfx_mat), 1, 18) == 'policyTRUE:age_grp'
+      estn_results_sub[estn_row_sel, c('AME', 'MER')] <-
+        mfx_mat[mfx_row_sel, c('AME', 'MER')]
+
+
+    } else if ((age_int == 'no') &
+               (window_sel == 'Monthly 4 yr.')) {
+      # # Both policy and policy-month MFX required for tables.
+      # estn_results_sub[estn_results_sub[, 'Variable'] == 'policyTRUE',
+      #                  c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
+      # estn_results_sub[
+      #   substr(estn_results_sub[, 'Variable'], 1, 12) == 'policy_month',
+      #   c('AME', 'MER')] <- mfx_mat[2:nrow(mfx_mat), c('AME', 'MER')]
+
+      estn_row_sel <-
+        substr(estn_results_sub[, 'Variable'], 1, 12) == 'policy_month'
+      mfx_row_sel <- substr(rownames(mfx_mat), 1, 12) == 'policy_month'
+      estn_results_sub[estn_row_sel, c('AME', 'MER')] <-
+        mfx_mat[mfx_row_sel, c('AME', 'MER')]
+
+
+    }
 
 
 
-  if ((age_int %in% c('no', age_grp_list)) &
-      !(window_sel == 'Monthly 4 yr.')) {
-    # # Only policy MFX required for tables.
-    # estn_results_sub[estn_results_sub[, 'Variable'] == 'policyTRUE',
-    #                  c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
-
-
-  } else if ((age_int == 'with') &
-             !(window_sel == 'Monthly 4 yr.')) {
-    # # Both policy and policy-age MFX required for tables.
-    # estn_results_sub[estn_results_sub[, 'Variable'] == 'policyTRUE',
-    #                  c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
-    # estn_results_sub[
-    #   substr(estn_results_sub[, 'Variable'], 1, 18) == 'policyTRUE:age_grp',
-    #   c('AME', 'MER')] <- mfx_mat[2:nrow(mfx_mat), c('AME', 'MER')]
-
-    # Base it on contents of model and mfx_mat.
+    # Age MFX required for all tables.
     estn_row_sel <-
-      substr(estn_results_sub[, 'Variable'], 1, 18) == 'policyTRUE:age_grp'
-    mfx_row_sel <- substr(rownames(mfx_mat), 1, 18) == 'policyTRUE:age_grp'
+      substr(estn_results_sub[, 'Variable'], 1, 7) == 'age_grp'
+    mfx_row_sel <- substr(rownames(mfx_mat), 1, 7) == 'age_grp'
     estn_results_sub[estn_row_sel, c('AME', 'MER')] <-
       mfx_mat[mfx_row_sel, c('AME', 'MER')]
 
-
-  } else if ((age_int == 'no') &
-             (window_sel == 'Monthly 4 yr.')) {
-    # # Both policy and policy-month MFX required for tables.
-    # estn_results_sub[estn_results_sub[, 'Variable'] == 'policyTRUE',
-    #                  c('AME', 'MER')] <- mfx_mat[1, c('AME', 'MER')]
-    # estn_results_sub[
-    #   substr(estn_results_sub[, 'Variable'], 1, 12) == 'policy_month',
-    #   c('AME', 'MER')] <- mfx_mat[2:nrow(mfx_mat), c('AME', 'MER')]
-
-    estn_row_sel <-
-      substr(estn_results_sub[, 'Variable'], 1, 12) == 'policy_month'
-    mfx_row_sel <- substr(rownames(mfx_mat), 1, 12) == 'policy_month'
-    estn_results_sub[estn_row_sel, c('AME', 'MER')] <-
-      mfx_mat[mfx_row_sel, c('AME', 'MER')]
-
-
   }
-
-
-
-  # Age MFX required for all tables.
-  estn_row_sel <-
-    substr(estn_results_sub[, 'Variable'], 1, 7) == 'age_grp'
-  mfx_row_sel <- substr(rownames(mfx_mat), 1, 7) == 'age_grp'
-  estn_results_sub[estn_row_sel, c('AME', 'MER')] <-
-    mfx_mat[mfx_row_sel, c('AME', 'MER')]
 
 
   return(estn_results_sub)
