@@ -17,7 +17,7 @@
 # College of Business
 # University of Central Florida
 #
-# June 19, 2021
+# November 25, 2021
 #
 ################################################################################
 #
@@ -32,6 +32,16 @@
 #
 # This version also includes an extra category for pre-policy change
 # points balances.
+#
+# This version differs from SAAQ_join_net.R in that
+# the zero-ticket observations are simply stacked
+# on top of the ticket data and balance data,
+# using the raw population counts of licensed drivers
+# for the zero-ticket population.
+# These calculations are read in from  the dataset
+# SAAQ_drivers_daily_unadj.csv because it takes in the
+# population counts by age and sex category,
+# with no adjustments for unlicenced drivers nor turnover.
 #
 ################################################################################
 
@@ -63,24 +73,40 @@ data_in_path <- 'Data'
 # The data of counts of licensed drivers are also stored in 'Data/'.
 data_out_path <- 'Data'
 
-# Set name of file with records of tickets. 
+# Set name of file with records of tickets.
 # tickets_file_name <- 'saaq_tickets.csv' # Tickets only.
 tickets_file_name <- 'saaq_tickets_balances.csv' # Tickets and balances.
-
-# Set name of file with counts of drivers without tickets.
-# Driver population includes drivers with no past tickets or current points.
-# no_tickets_file_name <- 'saaq_no_tickets.csv'
-driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
-
 
 # Set name of input file for point totals.
 # pts_out_file_name <- 'saaq_pts.csv'
 pts_bal_file_name <- 'saaq_point_balances.csv'
 
+# Set methodology for zero-ticket population count:
+# adj (unadjusted zero counts, intended for stacked join) or
+# zero_count_method <- 'adj'
+# unadj (adjusted zero counts, intended for differenced join)
+zero_count_method <- 'unadj'
+
+# Set name of file with counts of drivers without tickets.
+# Driver population includes drivers with no past tickets or current points.
+# no_tickets_file_name <- 'saaq_no_tickets.csv'
+# driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
+driver_counts_file_name <- sprintf('SAAQ_drivers_daily_%s.csv',
+                                   zero_count_method)
+
+# Set join methodology:
+# all (stacked, intended for unadjusted zero counts) or
+join_method <- 'all'
+# net (differenced, intended for adjusted zero counts)
+# join_method <- 'net'
+
 # Set name of output file for training, testing and estimation samples.
-out_train_file_name <- 'saaq_train.csv'
-out_test_file_name <- 'saaq_test.csv'
-out_estn_file_name <- 'saaq_estn.csv'
+out_train_file_name <- sprintf('saaq_%s_%s_train.csv',
+                               join_method, zero_count_method)
+out_test_file_name <- sprintf('saaq_%s_%s_test.csv',
+                              join_method, zero_count_method)
+out_estn_file_name <- sprintf('saaq_%s_%s_estn.csv',
+                              join_method, zero_count_method)
 
 
 set.seed(42)
@@ -112,11 +138,11 @@ max(date_list)
 
 
 # Age group categories for defining factors.
-# Original finer grouping to match driver counts: 
+# Original finer grouping to match driver counts:
 # age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
 #                     '55-64', '65-74', '75-84', '85-89', '90-199')
 # Coarser grouping to merge less-populated age groups:
-age_group_list <- c('0-19', 
+age_group_list <- c('0-19',
                     '20-24', '25-34', '35-44', '45-54',
                     '55-64', '65-199')
 
@@ -126,18 +152,19 @@ curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
 
 # Current version has current points groups and indicator
 # for pre-policy-change mid-to-high points balance:
-# agg_var_list <- c('date', 'sex', 'age_grp', 'past_active', 
+# agg_var_list <- c('date', 'sex', 'age_grp', 'past_active',
 #                   'curr_pts_grp', 'points')
 
 # List of variables for joined datasets.
-join_var_list <- c('date', 'seq', 'sex', 'age_grp', 'past_active', 
+join_var_list <- c('date', 'seq', 'sex', 'age_grp', 'past_active',
                    'curr_pts_grp', 'points', 'num')
-train_var_list <- c('date', 'seq', 'sex', 'age_grp', 'past_active', 
-                   'curr_pts_grp', 'points', 'train_num')
-test_var_list <- c('date', 'seq', 'sex', 'age_grp', 'past_active', 
-                   'curr_pts_grp', 'points', 'test_num')
-estn_var_list <- c('date', 'seq', 'sex', 'age_grp', 'past_active', 
-                   'curr_pts_grp', 'points', 'estn_num')
+train_var_list <- c(join_var_list)
+train_var_list[length(join_var_list)] <- 'train_num'
+test_var_list <- c(join_var_list)
+test_var_list[length(join_var_list)] <- 'test_num'
+estn_var_list <- c(join_var_list)
+estn_var_list[length(join_var_list)] <- 'estn_num'
+
 
 
 
@@ -149,7 +176,7 @@ estn_var_list <- c('date', 'seq', 'sex', 'age_grp', 'past_active',
 # Load Daily Driver Counts
 #-------------------------------------------------------------------------------
 
-# Driver population includes all drivers, 
+# Driver population includes all drivers,
 # including those with no past tickets or current points.
 in_path_file_name <- sprintf('%s/%s', data_in_path, driver_counts_file_name)
 driver_counts <- fread(in_path_file_name)
@@ -182,6 +209,7 @@ colnames(driver_counts)
 lapply(driver_counts, class)
 
 summary(driver_counts[, c(join_var_list), with = FALSE])
+# All have zero curr_pts and no seq.
 
 
 
@@ -190,7 +218,6 @@ nrow(driver_counts)/length(date_list)
 
 table(driver_counts[, age_grp], driver_counts[, sex])
 # Every sex-age_grp combination.
-# All have zero curr_pts and no seq.
 
 
 
@@ -229,18 +256,18 @@ saaq_past_counts[, sex := factor(sex, levels = c('M', 'F'))]
 saaq_past_counts[age_grp %in% c('0-15', '16-19'), age_grp := '0-19']
 saaq_past_counts[age_grp %in% c('65-74', '75-84', '85-89', '90-199'), age_grp := '65-199']
 saaq_past_counts[, age_grp := factor(age_grp, levels = age_group_list)]
-saaq_past_counts <- unique(saaq_past_counts[, num := sum(num), 
-                                            by = c('date', 'age_grp', 'sex', 
+saaq_past_counts <- unique(saaq_past_counts[, num := sum(num),
+                                            by = c('date', 'age_grp', 'sex',
                                                    'past_active', 'curr_pts_grp')])
 saaq_past_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 
 
 
 summary(saaq_past_counts[, c(join_var_list), with = FALSE])
-# Recall that negative values are drivers swapping in from 
-# the zero-point category. 
-# These will be canceled out later, when driver counts are added in. 
-# Update: These are already canceled out by initializing the balances. 
+# Recall that negative values are drivers swapping in from
+# the zero-point category.
+# These will be canceled out later, when driver counts are added in.
+# Update: These are already canceled out by initializing the balances.
 # They are removed from the counts of inactive drivers below.
 
 
@@ -256,15 +283,15 @@ saaq_tickets <- fread(file = in_path_file_name)
 
 # Standardize date variable.
 # Note that "date" is lagged one day to calculate point-balance counts.
-# The variable "dinf" refers to the date of infraction. 
+# The variable "dinf" refers to the date of infraction.
 saaq_tickets[, date_bal := date]
 saaq_tickets[, date := dinf]
 
 
-# Adjuste balance category variable.
-# For balances, status moves from prev_pts to curr_pts, 
-# during a day, as a driver gets a ticket (or not). 
-# FOr conditioning on past behaviour, prev_pts is the relevant balance category
+# Adjust balance category variable.
+# For balances, status moves from prev_pts to curr_pts,
+# during a day, as a driver gets a ticket (or not).
+# For conditioning on past behaviour, prev_pts is the relevant balance category
 # for driver's status before getting a ticket.
 saaq_tickets[, curr_pts_bal := curr_pts]
 saaq_tickets[, curr_pts_grp_bal := curr_pts_grp]
@@ -300,35 +327,39 @@ summary(saaq_tickets[, c(join_var_list), with = FALSE])
 # point-balance categories
 ################################################################################
 
-# Obtain counts of drivers who left the curr_pts_grp == 0 category.
-# That is, all drivers who got a ticket at some point.
-# These are already contained in saaq_past_counts
-# (even if they are sometime in curr_pts_grp == 0)
-# and should be removed from driver_counts to avoid double-counting these drivers.
-non_zero_counts <- unique(saaq_tickets[, c('seq', 'sex', 'age_grp')])
-non_zero_counts <- unique(non_zero_counts[, .N, by = c('sex', 'age_grp')])
-# non_zero_counts[, curr_pts_grp := 0]
-# Change column order to match.
-# non_zero_counts <- non_zero_counts[, c('sex', 'age_grp', 'curr_pts_grp', 'N')]
-# non_zero_counts <- non_zero_counts[, c('sex', 'age_grp', 'N')]
-# Skip adding the zeros for now.
-# non_zero_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
-# non_zero_counts <- non_zero_counts[order(sex, age_grp, curr_pts_grp)]
-non_zero_counts <- non_zero_counts[order(sex, age_grp)]
+if (join_method == 'net') {
+
+  # Obtain counts of drivers who left the curr_pts_grp == 0 category.
+  # That is, all drivers who got a ticket at some point.
+  # These are already contained in saaq_past_counts
+  # (even if they are sometime in curr_pts_grp == 0)
+  # and should be removed from driver_counts to avoid double-counting these drivers.
+  non_zero_counts <- unique(saaq_tickets[, c('seq', 'sex', 'age_grp')])
+  non_zero_counts <- unique(non_zero_counts[, .N, by = c('sex', 'age_grp')])
+  # non_zero_counts[, curr_pts_grp := 0]
+  # Change column order to match.
+  # non_zero_counts <- non_zero_counts[, c('sex', 'age_grp', 'curr_pts_grp', 'N')]
+  # non_zero_counts <- non_zero_counts[, c('sex', 'age_grp', 'N')]
+  # Skip adding the zeros for now.
+  # non_zero_counts[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+  # non_zero_counts <- non_zero_counts[order(sex, age_grp, curr_pts_grp)]
+  non_zero_counts <- non_zero_counts[order(sex, age_grp)]
 
 
-# Subtract these active drivers from the total count of drivers.
-for (row in 1:nrow(non_zero_counts)) {
-  sex_sel <- non_zero_counts[row, sex]
-  age_grp_sel <- non_zero_counts[row, age_grp]
-  num_non_zero <- non_zero_counts[row, N]
-  
-  # Note that all inactive drivers have zero points, curr_pts_grp == 0,  
-  # past_active == FALSE and seq == 0. 
-  driver_counts[sex == sex_sel & age_grp == age_grp_sel, num := num - num_non_zero]
+  # Subtract these active drivers from the total count of drivers.
+  for (row in 1:nrow(non_zero_counts)) {
+    sex_sel <- non_zero_counts[row, sex]
+    age_grp_sel <- non_zero_counts[row, age_grp]
+    num_non_zero <- non_zero_counts[row, N]
+
+    # Note that all inactive drivers have zero points, curr_pts_grp == 0,
+    # past_active == FALSE and seq == 0.
+    driver_counts[sex == sex_sel & age_grp == age_grp_sel, num := num - num_non_zero]
+  }
+
+  # Only the inactive drivers will remain.
+
 }
-
-# Only the inactive drivers will remain.
 
 summary(driver_counts)
 
@@ -346,11 +377,11 @@ summary(driver_counts)
 # The positive point balances come from here.
 summary(saaq_past_counts[, c(join_var_list), with = FALSE])
 # In earlier versions, there were negative counts for the zero categories.
-# These were accumulated as drivers swapped from zero to positive balances. 
+# These were accumulated as drivers swapped from zero to positive balances.
 summary(saaq_past_counts[num < 0, num, by = curr_pts_grp])
 # No more negative counts remain in the zero categories.
 summary(saaq_past_counts[curr_pts_grp != 0, min(num), by = curr_pts_grp])
-# Confirmed. 
+# Confirmed.
 
 
 # The full count of drivers with zero point balances come from here.
@@ -374,37 +405,37 @@ saaq_tickets <- saaq_tickets[order(date, sex, age_grp, past_active, curr_pts_grp
 # Divide data into samples.
 #-------------------------------------------------------------------------------
 
-# Couts of drivers in point balance categories.
+# Counts of drivers in point balance categories.
 saaq_past_counts[, train_num := round(num*pct_train)]
 saaq_past_counts[, test_num := round(num*pct_test)]
 saaq_past_counts[, estn_num := round(num*pct_estn)]
 
-# Keep current points group if counts are initialized. 
-# saaq_past_counts[, sample_sel := curr_pts_grp != 0 & 
-#                    date >= sample_beg & 
+# Keep current points group if counts are initialized.
+# saaq_past_counts[, sample_sel := curr_pts_grp != 0 &
+#                    date >= sample_beg &
 #                    date <= sample_end]
-saaq_past_counts[, sample_sel := date >= sample_beg & 
+saaq_past_counts[, sample_sel := date >= sample_beg &
                    date <= sample_end]
 
 
 
-# Counts of licensed drivers. 
+# Counts of licensed drivers.
 driver_counts[, train_num := round(num*pct_train)]
 driver_counts[, test_num := round(num*pct_test)]
 driver_counts[, estn_num := round(num*pct_estn)]
 
-driver_counts[, sample_sel := date >= sample_beg & 
+driver_counts[, sample_sel := date >= sample_beg &
                 date <= sample_end]
 
 
 
-# Select drivers to allocate tickets to samples. 
+# Select drivers to allocate tickets to samples.
 seq_list <- unique(saaq_tickets[, c('seq'), with = FALSE])[order(seq)]
 seq_list <- seq_list[, seq]
 seq_sel_rand <- runif(n = length(seq_list))
 
 seq_sel_train <- seq_list[seq_sel_rand <= pct_train]
-seq_sel_test <- seq_list[seq_sel_rand > pct_train & 
+seq_sel_test <- seq_list[seq_sel_rand > pct_train &
                            seq_sel_rand <= pct_train + pct_test]
 seq_sel_estn <- seq_list[seq_sel_rand > 1 - pct_estn]
 
@@ -414,7 +445,7 @@ length(c(seq_sel_train, seq_sel_test, seq_sel_estn)) == length(seq_list)
 
 
 # Select sample within specified dates.
-saaq_tickets[, sample_sel := date >= sample_beg & 
+saaq_tickets[, sample_sel := date >= sample_beg &
                date <= sample_end]
 
 
@@ -428,44 +459,45 @@ table(saaq_tickets[, test_sel], useNA = 'ifany')
 table(saaq_tickets[, estn_sel], useNA = 'ifany')
 
 
-table(saaq_tickets[, train_sel], 
+table(saaq_tickets[, train_sel],
       saaq_tickets[, test_sel], useNA = 'ifany')
-
+# No observations allocated to both samples.
+# Some are in neither sample, if date is outside sample range.
 
 #-------------------------------------------------------------------------------
 # Join the datasets by stacking
 #-------------------------------------------------------------------------------
 
 # Training dataset.
-saaq_train <- rbind(saaq_past_counts[sample_sel == TRUE, c(train_var_list), with = FALSE], 
-                   driver_counts[sample_sel == TRUE, c(train_var_list), with = FALSE], 
+saaq_train <- rbind(saaq_past_counts[sample_sel == TRUE, c(train_var_list), with = FALSE],
+                   driver_counts[sample_sel == TRUE, c(train_var_list), with = FALSE],
                    saaq_tickets[train_sel == TRUE, c(train_var_list), with = FALSE])
 colnames(saaq_train) <- join_var_list
 saaq_train <- saaq_train[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
 # Aggregate counts of zero balances from two data sources.
-saaq_train <- unique(saaq_train[, num := sum(num), 
+saaq_train <- unique(saaq_train[, num := sum(num),
                                 by = list(date, seq, sex, age_grp, past_active, curr_pts_grp, points)])
 
 
 # Testing dataset.
-saaq_test <- rbind(saaq_past_counts[sample_sel == TRUE, c(test_var_list), with = FALSE], 
-                    driver_counts[sample_sel == TRUE, c(test_var_list), with = FALSE], 
+saaq_test <- rbind(saaq_past_counts[sample_sel == TRUE, c(test_var_list), with = FALSE],
+                    driver_counts[sample_sel == TRUE, c(test_var_list), with = FALSE],
                     saaq_tickets[test_sel == TRUE, c(test_var_list), with = FALSE])
 colnames(saaq_test) <- join_var_list
 saaq_test <- saaq_test[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
 # Aggregate counts of zero balances from two data sources.
-saaq_test <- unique(saaq_test[, num := sum(num), 
+saaq_test <- unique(saaq_test[, num := sum(num),
                               by = list(date, seq, sex, age_grp, past_active, curr_pts_grp, points)])
 
 
 # Estimation dataset.
-saaq_estn <- rbind(saaq_past_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
-                    driver_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE], 
+saaq_estn <- rbind(saaq_past_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE],
+                    driver_counts[sample_sel == TRUE, c(estn_var_list), with = FALSE],
                     saaq_tickets[estn_sel == TRUE, c(estn_var_list), with = FALSE])
 colnames(saaq_estn) <- join_var_list
 saaq_estn <- saaq_estn[order(date, seq, sex, age_grp, past_active, curr_pts_grp, points), ]
 # Aggregate counts of zero balances from two data sources.
-saaq_estn <- unique(saaq_estn[, num := sum(num), 
+saaq_estn <- unique(saaq_estn[, num := sum(num),
                               by = list(date, seq, sex, age_grp, past_active, curr_pts_grp, points)])
 
 
@@ -473,14 +505,13 @@ saaq_estn <- unique(saaq_estn[, num := sum(num),
 
 # # All three datasets.
 # nrow(saaq_tickets) + nrow(saaq_past_counts) + nrow(driver_counts)
-# 
+#
 # # Removing overlap from zero point-balance category.
 # nrow(saaq_tickets) + nrow(saaq_past_counts)
-# 
+#
 # # Includes observations after 2010, when tickets continue to expire.
 # nrow(saaq_tickets) + nrow(saaq_past_counts) + nrow(driver_counts)
-# 
-# nrow(saaq_full)
+#
 
 
 
@@ -488,6 +519,14 @@ saaq_estn <- unique(saaq_estn[, num := sum(num),
 # Output Training, Testing and Estimation Datasets
 ################################################################################
 
+
+# Final inspection before saving.
+summary(saaq_train)
+summary(saaq_test)
+summary(saaq_estn)
+# Confirm no negative counts
+# (in case of netting out the tickets
+# from the driver population).
 
 # Training dataset.
 out_path_file_name <- sprintf('%s/%s', data_out_path, out_train_file_name)
@@ -500,10 +539,10 @@ write.csv(x = saaq_test, file = out_path_file_name, row.names = FALSE)
 
 
 # Estimation dataset.
-if (pct_estn > 0) {
-  out_path_file_name <- sprintf('%s/%s', data_out_path, out_estn_file_name)
-  write.csv(x = saaq_estn, file = out_path_file_name, row.names = FALSE) 
-}
+# if (pct_estn > 0) {
+out_path_file_name <- sprintf('%s/%s', data_out_path, out_estn_file_name)
+write.csv(x = saaq_estn, file = out_path_file_name, row.names = FALSE)
+# }
 
 
 

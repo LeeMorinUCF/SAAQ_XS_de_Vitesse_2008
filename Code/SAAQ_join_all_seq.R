@@ -82,9 +82,9 @@ driver_counts_file_name <- 'SAAQ_drivers_daily.csv'
 pts_bal_file_name <- 'saaq_point_balances.csv'
 
 # Set name of output file for training, testing and estimation samples.
-out_train_file_name <- 'saaq_train_by_seq.csv'
-out_test_file_name <- 'saaq_test_by_seq.csv'
-out_estn_file_name <- 'saaq_estn_by_seq.csv'
+out_train_file_name <- 'saaq_FE_train_by_seq.csv'
+out_test_file_name <- 'saaq_FE_test_by_seq.csv'
+out_estn_file_name <- 'saaq_FE_estn_by_seq.csv'
 
 
 set.seed(42)
