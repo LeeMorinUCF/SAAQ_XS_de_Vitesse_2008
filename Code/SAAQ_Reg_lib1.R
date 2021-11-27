@@ -130,6 +130,28 @@ model_spec <- function(spec_group,
                               reg_type = reg_list)
 
 
+  } else if (spec_group == 'points') {
+
+    #------------------------------------------------------------
+    # Specification: Separate demerit point groups
+    #------------------------------------------------------------
+
+    # Set the full list of model specification combinations.
+    model_list <- expand.grid(past_pts = c('all'),
+                              window = c('4 yr.'),
+                              seasonality = c('mnwk'),
+                              # age_int = age_int_list,
+                              age_int = 'no',
+                              pts_int = 'with', # Extra column.
+                              # pts_target = pts_target_list,
+                              pts_target = 'all',
+                              sex = c('Male', 'Female'),
+                              # sex = sex_list,
+                              # reg_type = reg_list,
+                              reg_type = 'LPM') # MFX not implemented yet.
+    # Note the extra column for demerit-point interactions.
+
+
   } else {
     stop('Regression specification not recognized. ')
   }
@@ -332,59 +354,106 @@ saaq_data_prep <- function(saaq_data,
   #--------------------------------------------------
 
   if (window_sel == 'Monthly 4 yr.') {
-    # Two definitions:
-    saaq_data[, 'policy_month'] <- NA
-    saaq_data[saaq_data[, 'date'] < april_fools_date, 'policy_month'] <- "policyFALSE"
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] >= as.Date('2009-04-01'), 'policy_month'] <- "policyFALSE"
+    # Two definitions, one is much more efficient:
+    saaq_data[, 'policy_month'] <- NA_character_
+    # saaq_data[saaq_data[, 'date'] < april_fools_date, 'policy_month'] <- "policyFALSE"
+    saaq_data[date < april_fools_date, policy_month := "policyFALSE"]
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] >= as.Date('2009-04-01'), 'policy_month'] <- "policyFALSE"
+    saaq_data[date >= april_fools_date &
+                date >= as.Date('2009-04-01'), policy_month := "policyFALSE"]
     # First definition: Policy and month of year (yes, confusing but easy).
     # saaq_data[saaq_data[, 'date'] >= april_fools_date &
     #             saaq_data[, 'date'] < as.Date('2009-04-01'), 'policy_month'] <-
     #   sprintf("policy%s", saaq_data[saaq_data[, 'date'] >= april_fools_date &
     #                                   saaq_data[, 'date'] < as.Date('2009-04-01'), 'month'])
     # Second definition: Policy and month of year (yes, confusing but easy).
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '04', 'policy_month'] <- 'policy01'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '05', 'policy_month'] <- 'policy02'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '06', 'policy_month'] <- 'policy03'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '07', 'policy_month'] <- 'policy04'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '08', 'policy_month'] <- 'policy05'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '09', 'policy_month'] <- 'policy06'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '10', 'policy_month'] <- 'policy07'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '11', 'policy_month'] <- 'policy08'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '12', 'policy_month'] <- 'policy09'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '01', 'policy_month'] <- 'policy10'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '02', 'policy_month'] <- 'policy11'
-    saaq_data[saaq_data[, 'date'] >= april_fools_date &
-                saaq_data[, 'date'] < as.Date('2009-04-01') &
-                saaq_data[, 'month'] == '03', 'policy_month'] <- 'policy12'
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '04', 'policy_month'] <- 'policy01'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '04', policy_month := 'policy01']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '05', 'policy_month'] <- 'policy02'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '05', policy_month := 'policy02']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '06', 'policy_month'] <- 'policy03'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '06', policy_month := 'policy03']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '07', 'policy_month'] <- 'policy04'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '07', policy_month := 'policy04']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '08', 'policy_month'] <- 'policy05'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '08', policy_month := 'policy05']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '09', 'policy_month'] <- 'policy06'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '09', policy_month := 'policy06']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '10', 'policy_month'] <- 'policy07'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '10', policy_month := 'policy07']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '11', 'policy_month'] <- 'policy08'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '11', policy_month := 'policy08']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '12', 'policy_month'] <- 'policy09'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '12', policy_month := 'policy09']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '01', 'policy_month'] <- 'policy10'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '01', policy_month := 'policy10']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '02', 'policy_month'] <- 'policy11'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '02', policy_month := 'policy11']
+    # saaq_data[saaq_data[, 'date'] >= april_fools_date &
+    #             saaq_data[, 'date'] < as.Date('2009-04-01') &
+    #             saaq_data[, 'month'] == '03', 'policy_month'] <- 'policy12'
+    saaq_data[date >= april_fools_date &
+                date < as.Date('2009-04-01') &
+                month == '03', policy_month := 'policy12']
     # In either case, transform it into factor.
-    saaq_data[, 'policy_month'] <- factor(saaq_data[, 'policy_month'],
-                                          levels = c('policyFALSE',
-                                                     sprintf('policy0%d', 1:9),
-                                                     sprintf('policy%d', 10:12)))
+    # saaq_data[, 'policy_month'] <- factor(saaq_data[, 'policy_month'],
+    #                                       levels = c('policyFALSE',
+    #                                                  sprintf('policy0%d', 1:9),
+    #                                                  sprintf('policy%d', 10:12)))
+    saaq_data[, policy_month := factor(policy_month,
+                                       levels = c('policyFALSE',
+                                                  sprintf('policy0%d', 1:9),
+                                                  sprintf('policy%d', 10:12)))]
+
+
+    # table(saaq_data[, 'policy_month'], useNA = 'ifany')
   }
+
 
 
   #--------------------------------------------------
@@ -506,6 +575,7 @@ saaq_data_prep <- function(saaq_data,
 reg_var_list <- function(sex_sel,
                      window_sel,
                      age_int, age_grp_list,
+                     pts_int,
                      season_incl) {
 
   if (sex_sel == 'All') {
@@ -522,6 +592,7 @@ reg_var_list <- function(sex_sel,
   if (window_sel == 'Monthly 4 yr.') {
     var_list <- c(var_list, 'policy_month')
   }
+
   if (age_int == 'with') {
     # var_list <- c(var_list, 'policy*age_grp')
     var_list <- c(var_list, 'age_grp', 'policy*age_grp')
@@ -536,8 +607,18 @@ reg_var_list <- function(sex_sel,
     stop(sprintf("Age indicator selector '%s' not recognized.", age_int))
   }
 
-  # var_list <- c(var_list, 'age_grp', 'curr_pts_grp')
-  var_list <- c(var_list, 'curr_pts_grp')
+
+  if (pts_int == 'with') {
+    var_list <- c(var_list, 'curr_pts_reg', 'policy*curr_pts_reg')
+  } else if (pts_int == 'no') {
+    var_list <- c(var_list, 'curr_pts_grp')
+    # Use coarser groupings without interactions.
+  } else {
+    stop(sprintf("Demerit-points indicator selector '%s' not recognized.", pts_int))
+  }
+
+
+
   if (season_incl == 'monthly') {
     var_list <- c(var_list, 'month')
   } else if (season_incl == 'mnwk') {

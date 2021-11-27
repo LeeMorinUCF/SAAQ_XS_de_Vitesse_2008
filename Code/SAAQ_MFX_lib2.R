@@ -112,8 +112,10 @@ mfx_mat_calc <- function(saaq_data,
 
       mfx_age_sel <- age_grp_list[mfx_age_num]
       mfx_sel_obs <- sel_obs & saaq_data[, 'age_grp'] == mfx_age_sel
+      saaq_data[, 'mfx_sel_obsn'] <- mfx_sel_obs
+
       saaq_data_pred <- aggregate(formula = mfx_fmla,
-                                  data = saaq_data[mfx_sel_obs, ],
+                                  data = saaq_data[mfx_sel_obsn == TRUE, ],
                                   FUN = sum)
       # Assign difference to AME.
       if (mfx_age_num == 1) {

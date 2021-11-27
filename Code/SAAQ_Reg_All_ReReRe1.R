@@ -64,6 +64,32 @@ setwd(wd_path)
 # data_in_path <- 'C:/Users/le279259/Documents/Research/SAAQ/SAAQdata_full/'
 data_in_path <- 'Data'
 
+
+# Set methodology for zero-ticket population count:
+# adj (unadjusted zero counts, intended for stacked join) or
+zero_count_method <- 'adj'
+# unadj (adjusted zero counts, intended for differenced join)
+# zero_count_method <- 'unadj'
+
+# Set join methodology:
+# all (stacked, intended for unadjusted zero counts) or
+# join_method <- 'all'
+# net (differenced, intended for adjusted zero counts)
+join_method <- 'net'
+
+
+# Set version of input files.
+# data_in_method <- 'all_unadj'
+data_in_method <- sprintf('%s_%s', join_method, zero_count_method)
+
+
+# Set name of input file for training, testing and estimation samples.
+train_file_name <- sprintf('saaq_%s_train.csv', data_in_method)
+test_file_name <- sprintf('saaq_%s_test.csv', data_in_method)
+# estn_file_name <- sprintf('saaq_%s_estn.csv', data_in_method)
+
+
+
 # The data of demerit point counts are stored in 'SAAQdata/seqData/'.
 # dataOutPath <- 'SAAQspeeding/SAAQspeeding/'
 # data_out_path <- '~/Research/SAAQ/SAAQspeeding/SAAQspeeding/'
@@ -75,7 +101,8 @@ data_out_path <- 'Estn'
 # git_path <- "~/Research/SAAQ/SAAQspeeding/Hidden_Comp_Risks/R_and_R"
 # git_path <- "C:/Users/le279259/Documents/Research/SAAQ/SAAQspeeding/Hidden_Comp_Risks/R_and_R"
 # md_dir <- sprintf("%s/results", git_path)
-md_dir <- sprintf("%s/results", data_out_path)
+# md_dir <- sprintf("%s/results", data_out_path)
+md_dir <- sprintf("%s/results_%s", data_out_path, data_in_method)
 # md_dir <- "results"
 
 # Read script for calculating marginal effects.
@@ -98,21 +125,6 @@ source(agg_reg_het_file)
 
 
 
-# Set version of input files.
-data_in_method <- 'all_unadj'
-
-# Set name of input file for training, testing and estimation samples.
-train_file_name <- sprintf('saaq_%s_train.csv', data_in_method)
-test_file_name <- sprintf('saaq_%s_test.csv', data_in_method)
-# estn_file_name <- sprintf('saaq_%s_estn.csv', data_in_method)
-
-
-
-
-# # Set version of output file.
-# estn_version <- 99
-# estn_file_name <- sprintf('estimates_v%d.csv', estn_version)
-# estn_file_path <- sprintf('%s/%s', md_dir, estn_file_name)
 
 ################################################################################
 # Set Parameters for variables
@@ -280,11 +292,14 @@ saaq_data[, policy := date >= april_fools_date]
 
 summary(saaq_data)
 
+
 #--------------------------------------------------------------------------------
 # Create new factors by consolidating some categories
 #--------------------------------------------------------------------------------
 
+#--------------------------------------------------------------------------------
 # Age groups.
+#--------------------------------------------------------------------------------
 table(saaq_data[, 'age_grp'], useNA = 'ifany')
 
 # Age groups already consolidated in data prep.
@@ -309,13 +324,15 @@ age_grp_list <- levels(saaq_data[, age_grp])
 # table(saaq_data[, 'age_grp'],
 #       saaq_data[, 'age_grp_orig'], useNA = 'ifany')
 # # Check.
+#--------------------------------------------------------------------------------
 
 
 
 
 
-
+#--------------------------------------------------------------------------------
 # Current point balance groups.
+#--------------------------------------------------------------------------------
 table(saaq_data[, 'curr_pts_grp'], useNA = 'ifany')
 
 # Consolidate categories of current points balances.
@@ -354,6 +371,42 @@ table(saaq_data[, 'curr_pts_grp'], useNA = 'ifany')
 table(saaq_data[, curr_pts_grp],
       saaq_data[, curr_pts_grp_orig], useNA = 'ifany')
 # Check.
+#--------------------------------------------------------------------------------
+
+
+#--------------------------------------------------------------------------------
+# Current point balances for detailed regression by demerit point balance.
+#--------------------------------------------------------------------------------
+table(saaq_data[, 'curr_pts_grp'], useNA = 'ifany')
+
+# Consolidate categories of current points balances.
+# curr_pts_grp_list <- levels(saaq_data[, 'curr_pts_grp'])
+saaq_data[, 'curr_pts_reg'] <- saaq_data[, 'curr_pts_grp']
+curr_pts_reg_list <- c(as.character(seq(0,9)), '10-150')
+
+# Create the new factor.
+saaq_data[, 'curr_pts_reg'] <- as.factor(NA)
+levels(saaq_data[, 'curr_pts_reg']) <- curr_pts_reg_list
+
+# Add the separate point levels first.
+saaq_data[, curr_pts_grp_sel := curr_pts_grp_orig %in% curr_pts_grp_list[1:10]]
+saaq_data[curr_pts_grp_sel == TRUE, curr_pts_reg := curr_pts_grp_orig]
+# Add the rest: 10-150.
+saaq_data[, curr_pts_grp_sel := curr_pts_grp_orig %in% curr_pts_grp_list[11:14]]
+saaq_data[curr_pts_grp_sel == TRUE, curr_pts_reg := curr_pts_reg_list[11]]
+
+
+# Reset levels of new curr_pts_reg factor.
+saaq_data[, curr_pts_reg := factor(curr_pts_reg,
+                                   levels = curr_pts_reg_list)]
+table(saaq_data[, 'curr_pts_reg'], useNA = 'ifany')
+
+
+# Trust but verify.
+table(saaq_data[, curr_pts_reg],
+      saaq_data[, curr_pts_grp_orig], useNA = 'ifany')
+# Check.
+#--------------------------------------------------------------------------------
 
 
 
@@ -397,6 +450,8 @@ pts_target_list <- c('all',
                      '9+')
 age_int_list <- c('no', 'with') # ..  age interactions
 
+pts_int_list <- c('no', 'with') # ..  demerit-point interactions
+
 
 # Specify headings for each point level.
 pts_headings <- data.frame(pts_target = pts_target_list,
@@ -426,8 +481,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: All Drivers with Monthly and weekday seasonality
-spec_group <- 'all'
-estn_version <- 12
+# spec_group <- 'all'
+# estn_version <- 12
 #------------------------------------------------------------
 
 #------------------------------------------------------------
@@ -515,8 +570,8 @@ md_path_last <- "empty"
 # estn_num <- 10
 # estn_num <- 91
 # model_list[estn_num, ]
-for (estn_num in 19:nrow(model_list)) {
-# for (estn_num in 1:nrow(model_list)) {
+# for (estn_num in 20:nrow(model_list)) {
+for (estn_num in 1:nrow(model_list)) {
 
   # Extract parameters for this estimated model.
   past_pts_sel <- model_list[estn_num, 'past_pts']
@@ -526,6 +581,7 @@ for (estn_num in 19:nrow(model_list)) {
   sex_sel <- model_list[estn_num, 'sex']
   pts_target <- model_list[estn_num, 'pts_target']
   age_int <- model_list[estn_num, 'age_int']
+  pts_int <- model_list[estn_num, 'pts_int']
 
   # Set paths and headers for regression output to markdown files.
   md_path <- md_headers(md_dir, md_path_last,
@@ -560,6 +616,7 @@ for (estn_num in 19:nrow(model_list)) {
   var_list <- reg_var_list(sex_sel,
                            window_sel,
                            age_int, age_grp_list,
+                           pts_int,
                            season_incl)
 
   fmla <- as.formula(sprintf('events ~ %s',
