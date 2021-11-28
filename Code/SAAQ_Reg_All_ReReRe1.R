@@ -73,9 +73,9 @@ zero_count_method <- 'adj'
 
 # Set join methodology:
 # all (stacked, intended for unadjusted zero counts) or
-# join_method <- 'all'
+join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-join_method <- 'net'
+# join_method <- 'net'
 
 
 # Set version of input files.
@@ -506,8 +506,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: Plot by demerit point groups
-# spec_group <- 'points'
-# estn_version <- 16
+spec_group <- 'points'
+estn_version <- 16
 #------------------------------------------------------------
 
 
