@@ -648,6 +648,16 @@ for (estn_num in 1:nrow(model_list)) {
     # lpm_neg_check(lm(data = saaq_data[sel_obsn == TRUE, ], weights = num,
     #                  formula = chosen_model))
 
+    # Save the covariance matrix for models with demerit-point interactions.
+    if (pts_int == "with") {
+      # Set path for saving covariance matrix.
+      cov_file_name <- sprintf('points_fig/cov_mat_v%d_%s_%s_age_int_%s.csv',
+                               estn_version, spec_group, age_int, sex_sel[1])
+      cov_file_path <- sprintf('%s/%s', md_dir, cov_file_name)
+
+      write.csv(agg_lpm_hccme_1$vcov_hccme, file = cov_file_path)
+    }
+
   } else if (reg_type == 'Logit') {
 
     # Estimate logistic regression model.
