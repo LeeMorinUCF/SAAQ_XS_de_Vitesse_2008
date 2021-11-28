@@ -104,9 +104,9 @@ pts_bal_file_name <- 'saaq_point_balances.csv'
 
 # Set methodology for zero-ticket population count:
 # adj (unadjusted zero counts, intended for stacked join) or
-zero_count_method <- 'adj'
+# zero_count_method <- 'adj'
 # unadj (adjusted zero counts, intended for differenced join)
-# zero_count_method <- 'unadj'
+zero_count_method <- 'unadj'
 
 # Set name of file with counts of drivers without tickets.
 # Driver population includes drivers with no past tickets or current points.
@@ -117,9 +117,9 @@ driver_counts_file_name <- sprintf('SAAQ_drivers_daily_%s.csv',
 
 # Set join methodology:
 # all (stacked, intended for unadjusted zero counts) or
-# join_method <- 'all'
+join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-join_method <- 'net'
+# join_method <- 'net'
 
 # Set name of output file for training, testing and estimation samples.
 out_train_file_name <- sprintf('saaq_%s_%s_train.csv',

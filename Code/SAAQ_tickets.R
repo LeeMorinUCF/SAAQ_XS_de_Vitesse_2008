@@ -233,12 +233,14 @@ tickets <- NULL
 # Generate data By age group
 ################################################################################
 
-# Previously, we defined age in years by date of infraction.
-# saaq[, 'age'] <- as.integer(substr(saaq[, 'dinf'], 1, 4)) - (1900 + saaq[, 'dob_yr'])
+# For LPM and logistic regressions, 
+# we defined age in years by date of infraction.
+saaq[, 'age'] <- as.integer(substr(saaq[, 'dinf'], 1, 4)) - (1900 + saaq[, 'dob_yr'])
 
-# Now redefine ages to create a fixed age category.
+# For fixed effects models, redefine ages to create a fixed age category.
+# This makes estimation computationally efficient wit hthe FWL theorem.
 # Define age as age in years at time of policy change.
-saaq[, 'age'] <- 2008 - (1900 + saaq[, 'dob_yr'])
+# saaq[, 'age'] <- 2008 - (1900 + saaq[, 'dob_yr'])
 # This way, the only variable with transitions is the point balances.
 # It makes for a one-dimensional state space for the (quasi-) first-order Markov model
 # (quasi- because demerit points expire after two years).

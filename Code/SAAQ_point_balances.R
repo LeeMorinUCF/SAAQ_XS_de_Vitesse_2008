@@ -160,7 +160,7 @@ saaq_point_hist[, sex := factor(sex, levels = c('M', 'F'))]
 table(saaq_point_hist[, 'sex'], useNA = 'ifany')
 
 
-# Now redefine age categories.
+  # Now redefine age categories.
 saaq_point_hist[, 'age_grp'] <- cut(saaq_point_hist[, age], breaks = age_cut_points,
                             labels = age_group_list)
 

@@ -67,9 +67,9 @@ data_in_path <- 'Data'
 
 # Set methodology for zero-ticket population count:
 # adj (unadjusted zero counts, intended for stacked join) or
-zero_count_method <- 'adj'
+# zero_count_method <- 'adj'
 # unadj (adjusted zero counts, intended for differenced join)
-# zero_count_method <- 'unadj'
+zero_count_method <- 'unadj'
 
 # Set join methodology:
 # all (stacked, intended for unadjusted zero counts) or
@@ -481,8 +481,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: All Drivers with Monthly and weekday seasonality
-# spec_group <- 'all'
-# estn_version <- 12
+spec_group <- 'all'
+estn_version <- 12
 #------------------------------------------------------------
 
 #------------------------------------------------------------
@@ -506,8 +506,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: Plot by demerit point groups
-spec_group <- 'points'
-estn_version <- 16
+# spec_group <- 'points'
+# estn_version <- 16
 #------------------------------------------------------------
 
 
