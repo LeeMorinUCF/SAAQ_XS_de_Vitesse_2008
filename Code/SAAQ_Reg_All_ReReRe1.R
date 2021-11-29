@@ -42,6 +42,9 @@
 # Clear workspace.
 rm(list=ls(all=TRUE))
 
+# Load data table package for quick selection on seq.
+library(data.table)
+
 
 ################################################################################
 # Set parameters for file IO
@@ -67,15 +70,15 @@ data_in_path <- 'Data'
 
 # Set methodology for zero-ticket population count:
 # adj (unadjusted zero counts, intended for stacked join) or
-# zero_count_method <- 'adj'
+zero_count_method <- 'adj'
 # unadj (adjusted zero counts, intended for differenced join)
-zero_count_method <- 'unadj'
+# zero_count_method <- 'unadj'
 
 # Set join methodology:
 # all (stacked, intended for unadjusted zero counts) or
-join_method <- 'all'
+# join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-# join_method <- 'net'
+join_method <- 'net'
 
 
 # Set version of input files.
@@ -481,8 +484,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: All Drivers with Monthly and weekday seasonality
-spec_group <- 'all'
-estn_version <- 12
+# spec_group <- 'all'
+# estn_version <- 12
 #------------------------------------------------------------
 
 #------------------------------------------------------------
@@ -506,8 +509,8 @@ estn_version <- 12
 
 #------------------------------------------------------------
 # Specification: Plot by demerit point groups
-# spec_group <- 'points'
-# estn_version <- 16
+spec_group <- 'points'
+estn_version <- 16
 #------------------------------------------------------------
 
 
@@ -652,7 +655,7 @@ for (estn_num in 1:nrow(model_list)) {
     if (pts_int == "with") {
       # Set path for saving covariance matrix.
       cov_file_name <- sprintf('points_fig/cov_mat_v%d_%s_%s_age_int_%s.csv',
-                               estn_version, spec_group, age_int, sex_sel[1])
+                               estn_version, spec_group, age_int, substr(sex_sel, 1, 1))
       cov_file_path <- sprintf('%s/%s', md_dir, cov_file_name)
 
       write.csv(agg_lpm_hccme_1$vcov_hccme, file = cov_file_path)

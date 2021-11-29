@@ -1128,7 +1128,7 @@ summary(saaq_past_counts[curr_pts_grp == '31-150', N])
 # summary(saaq_past_counts)
 # summary(saaq_past_counts_check)
 
-# Seems as though past version was over=counting.
+# Seems as though past version was over-counting.
 # That might solve the problem with the apparent excess of
 # tickets awarded to young males.
 

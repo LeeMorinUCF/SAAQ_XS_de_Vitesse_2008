@@ -61,9 +61,9 @@ zero_count_method <- 'adj'
 
 # Set join methodology:
 # all (stacked, intended for unadjusted zero counts) or
-join_method <- 'all'
+# join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-# join_method <- 'net'
+join_method <- 'net'
 
 
 # Set version of input files.
@@ -112,6 +112,8 @@ age_int <- 'no'
 # sex_sel <- 'Male'
 # sex_sel <- 'Female'
 sex_sel_list <- c('Male', 'Female')
+
+curr_pts_reg_list <- c(as.character(seq(0,9)), '10-150')
 
 points_policy <- data.frame(curr_pts = curr_pts_reg_list[2:11],
                             policy_M = numeric(10),

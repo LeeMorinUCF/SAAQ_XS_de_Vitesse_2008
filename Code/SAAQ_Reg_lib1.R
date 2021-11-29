@@ -148,6 +148,7 @@ model_spec <- function(spec_group,
                               age_int = age_int_list,
                               # age_int = 'no',
                               pts_int = 'with', # Extra column.
+                              # pts_int = c('with', 'full'), # Extra column.
                               # pts_target = pts_target_list,
                               pts_target = 'all',
                               sex = c('Male', 'Female'),
@@ -615,6 +616,9 @@ reg_var_list <- function(sex_sel,
 
   if (pts_int == 'with') {
     var_list <- c(var_list, 'curr_pts_reg', 'policy*curr_pts_reg')
+    # } else if (pts_int == 'full' & 'hell no' == TRUE) {
+    #   var_list <- c(var_list, 'curr_pts_reg', 'policy*curr_pts_reg',
+    #                 'policy*age_grp*curr_pts_reg') # Requires a lot of memory.
   } else if (pts_int == 'no') {
     var_list <- c(var_list, 'curr_pts_grp')
     # Use coarser groupings without interactions.
