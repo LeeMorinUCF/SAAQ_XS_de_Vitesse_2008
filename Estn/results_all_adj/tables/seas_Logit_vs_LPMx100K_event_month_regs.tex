@@ -1,0 +1,70 @@
+% Logistic Regression and Linear Probability Models: Seasonal Logit and LPM x 100K Specification by Event Month 
+
+\begin{table}% [ht] 
+\centering 
+\begin{tabular}{l r r r r l r r l} 
+
+\hline 
+ 
+ & \multicolumn{5}{c}{Logistic Regression}  & \multicolumn{3}{c}{Linear Probability Model} \\ 
+
+ \cmidrule(lr){2-6}\cmidrule(lr){7-9} 
+ & \multicolumn{2}{c}{Marginal Effects} & Estimate & Standard & Sig. & Estimate & Standard & Sig. \\ 
+
+ \cmidrule(lr){2-3} 
+ &   AME & MER &          &  Error   &      &          &  Error   &     \\ 
+
+\hline 
+ 
+\multicolumn{7}{l}{\textbf{Male Drivers} (5,335,033,221 observations)} \\ 
+
+Policy Indicator          &  -2.7684        &  -15.6932       &  -0.0723        &  0.0015       &   **       &  -2.4859        &  0.0553       &   **       \\ 
+Month 1                         &  6.1187        &  33.1901       &  0.1304        &  0.0047       &   **       &  5.3126        &  0.1954       &   **       \\ 
+Month 2                         &  4.1806        &  21.8554       &  0.0911        &  0.0046       &   **       &  3.7995        &  0.1931       &   **       \\ 
+Month 3                         &  0.6885        &  3.6212       &  0.0169        &  0.0048       &    *       &  0.6250        &  0.1903       &            \\ 
+Month 4                         &  -4.0280        &  -20.6535       &  -0.1176        &  0.0049       &   **       &  -4.5354        &  0.1801       &   **       \\ 
+Month 5                         &  -3.5049        &  -20.5689       &  -0.1170        &  0.0052       &   **       &  -4.1054        &  0.1694       &   **       \\ 
+Month 6                         &  -5.2414        &  -23.6883       &  -0.1392        &  0.0047       &   **       &  -5.8470        &  0.1933       &   **       \\ 
+Month 7                         &  -3.6945        &  -17.3908       &  -0.0958        &  0.0046       &   **       &  -4.0015        &  0.1894       &   **       \\ 
+Month 8                         &  -5.0273        &  -24.8278       &  -0.1478        &  0.0049       &   **       &  -5.9743        &  0.1853       &   **       \\ 
+Month 9                         &  -3.6989        &  -37.2960       &  -0.2634        &  0.0071       &   **       &  -5.4027        &  0.1250       &   **       \\ 
+Month 10                        &  -7.7961        &  -45.3582       &  -0.3805        &  0.0057       &   **       &  -11.5384        &  0.1560       &   **       \\ 
+Month 11                        &  -4.7554        &  -24.3307       &  -0.1440        &  0.0051       &   **       &  -5.6509        &  0.1883       &   **       \\ 
+Month 12                        &  -2.2665        &  -11.5860       &  -0.0606        &  0.0047       &   **       &  -2.5795        &  0.1852       &   **       \\ 
+
+\hline 
+
+\multicolumn{7}{l}{\textbf{Female Drivers} (4,340,212,273 observations)} \\ 
+
+Policy Indicator          &  1.0690        &  7.8021       &  0.0506        &  0.0022       &   **       &  1.3142        &  0.0493       &   **       \\ 
+Month 1                         &  2.4635        &  16.1072       &  0.0891        &  0.0070       &   **       &  2.2690        &  0.1770       &   **       \\ 
+Month 2                         &  1.1885        &  7.5930       &  0.0449        &  0.0069       &   **       &  1.2246        &  0.1735       &   **       \\ 
+Month 3                         &  -0.7741        &  -5.1780       &  -0.0345        &  0.0074       &   **       &  -0.8427        &  0.1675       &   **       \\ 
+Month 4                         &  -3.0692        &  -21.0108       &  -0.1714        &  0.0078       &   **       &  -3.7515        &  0.1546       &   **       \\ 
+Month 5                         &  -2.8268        &  -22.0868       &  -0.1834        &  0.0083       &   **       &  -3.6245        &  0.1453       &   **       \\ 
+Month 6                         &  -3.9495        &  -22.0019       &  -0.1824        &  0.0071       &   **       &  -4.3282        &  0.1729       &   **       \\ 
+Month 7                         &  -3.3953        &  -19.5287       &  -0.1556        &  0.0071       &   **       &  -3.6427        &  0.1692       &   **       \\ 
+Month 8                         &  -3.8808        &  -23.4679       &  -0.1996        &  0.0074       &   **       &  -4.6795        &  0.1661       &   **       \\ 
+Month 9                         &  -2.4828        &  -33.9274       &  -0.3720        &  0.0117       &   **       &  -4.7524        &  0.1047       &   **       \\ 
+Month 10                        &  -4.9418        &  -38.5196       &  -0.5387        &  0.0095       &   **       &  -8.6748        &  0.1296       &   **       \\ 
+Month 11                        &  -3.6764        &  -24.1213       &  -0.2076        &  0.0080       &   **       &  -4.5416        &  0.1642       &   **       \\ 
+Month 12                        &  -1.8825        &  -11.9355       &  -0.0857        &  0.0072       &   **       &  -2.0463        &  0.1664       &   **       \\ 
+
+\hline 
+
+\end{tabular} 
+\caption{Regressions with indicators for month since policy change} 
+For each regression, the dependent variable is an indicator that a driver has committed  
+any offence on a particular day.  
+All regressions contain age category and demerit point category controls, 
+as well as monthly and weekday indicator variables. 
+The baseline age category comprises drivers under the age of 16. 
+The heading ``Sig.'' is an abbreviation for statistical significance, with 
+the symbol * denoting statistical significance at the 0.1\% level 
+and ** the 0.001\% level. 
+Marginal effects, as well as linear probability model coefficients and standard errors, are  
+multiplied by 100,000.  
+The linear probability model uses heteroskedasticity-robust standard errors. 
+\label{tab:seas_Logit_vs_LPMx100K_event_month_regs} 
+\end{table} 
+ 

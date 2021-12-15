@@ -1,0 +1,66 @@
+% Logistic Regression and Linear Probability Models: Seasonal Logit and LPM x 100K Specification for High-Point Drivers by Point Value 
+
+\begin{table}% [ht] 
+\centering 
+\begin{tabular}{l r r r r l r r l} 
+
+\hline 
+ 
+ & \multicolumn{5}{c}{Logistic Regression}  & \multicolumn{3}{c}{Linear Probability Model} \\ 
+
+ \cmidrule(lr){2-6}\cmidrule(lr){7-9} 
+ & \multicolumn{2}{c}{Marginal Effects} & Estimate & Standard & Sig. & Estimate & Standard & Sig. \\ 
+
+ \cmidrule(lr){2-3} 
+ &   AME & MER &          &  Error   &      &          &  Error   &     \\ 
+
+\hline 
+ 
+\multicolumn{8}{l}{\textbf{Male Drivers} (921,131,812 observations)} \\ 
+
+All point values                &  -38.1838        &  -71.9736       &  -0.2431        &  0.0018       &   **       &  -38.1902        &  0.2745       &   **       \\ 
+1 point                         &  0.6058        &  0.8455       &  0.0524        &  0.0064       &   **       &  0.6213        &  0.0744       &   **       \\ 
+2 points                        &  -4.7381        &  -7.2474       &  -0.0817        &  0.0029       &   **       &  -4.7510        &  0.1665       &   **       \\ 
+3 points                        &  -27.0934        &  -55.0340       &  -0.3403        &  0.0025       &   **       &  -27.1179        &  0.1959       &   **       \\ 
+4 points                        &  -1.2365        &  -5.4909       &  -0.9178        &  0.0202       &   **       &  -1.1967        &  0.0261       &   **       \\ 
+5 points                        &  -4.3140        &  -13.9799       &  -0.9272        &  0.0109       &   **       &  -4.3046        &  0.0486       &   **       \\ 
+7 points                        &  -0.9489        &  -3.2732       &  -1.1237        &  0.0263       &   **       &  -0.9384        &  0.0211       &   **       \\ 
+9 or more points                &  -0.0000        &  -0.0000       &  -0.3351        &  51.2310       &            &  0.0000        &  0.0000       &  ???       \\ 
+
+\hline 
+
+\multicolumn{8}{l}{\textbf{Female Drivers} (249,294,627 observations)} \\ 
+
+All point values                &  -27.7011        &  -57.3243       &  -0.2266        &  0.0039       &   **       &  -27.7539        &  0.4743       &   **       \\ 
+1 point                         &  1.4038        &  2.6473       &  0.1595        &  0.0145       &   **       &  1.4070        &  0.1271       &   **       \\ 
+2 points                        &  -3.0815        &  -5.6004       &  -0.0609        &  0.0060       &   **       &  -3.0975        &  0.3041       &   **       \\ 
+3 points                        &  -22.6804        &  -49.3614       &  -0.3813        &  0.0056       &   **       &  -22.7268        &  0.3324       &   **       \\ 
+4 points                        &  -0.3554        &  -1.5256       &  -1.0856        &  0.0825       &   **       &  -0.3493        &  0.0256       &   **       \\ 
+5 points                        &  -2.4344        &  -10.0085       &  -1.1754        &  0.0334       &   **       &  -2.4308        &  0.0651       &   **       \\ 
+7 points                        &  -0.2701        &  -1.8267       &  -1.6148        &  0.1278       &   **       &  -0.2678        &  0.0193       &   **       \\ 
+9 or more points                &  -0.0000        &  0.0000       &  -0.2101        &  217.4034       &            &  0.0000        &  0.0000       &  ???       \\ 
+
+\hline 
+
+\end{tabular} 
+\caption{Regressions for high-point drivers by ticket-point value} 
+The dependent variable in each regression is equal to one  
+if a driver receives a ticket with a particular point value   
+(that of the first column for a particular row) on that day,  
+and is otherwise equal to zero. 
+The categories of tickets with 3, 5 and 7 points includes tickets  
+with 6, 10 and 14 points after the policy change, respectively,  
+and the category with 9 or more points includes tickets  
+with all corresponding doubled values after the policy change. 
+All regressions contain age category and demerit point category controls, 
+as well as monthly and weekday indicator variables. 
+The baseline age category comprises drivers under the age of 16. 
+The heading ``Sig.'' is an abbreviation for statistical significance, with 
+the symbol * denoting statistical significance at the 0.1\% level 
+and ** the 0.001\% level. 
+Marginal effects, as well as linear probability model coefficients and standard errors, are  
+multiplied by 100,000.  
+The linear probability model uses heteroskedasticity-robust standard errors.  
+\label{tab:seas_Logit_vs_LPMx100K_high_pt_regs_by_points} 
+\end{table} 
+ 

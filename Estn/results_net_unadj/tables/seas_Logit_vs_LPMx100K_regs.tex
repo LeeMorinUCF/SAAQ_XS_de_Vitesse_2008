@@ -1,0 +1,68 @@
+% Logistic Regression and Linear Probability Models: Seasonal Logit and LPM x 100K Specification for Male and Female Drivers by Point Value 
+
+\begin{table}% [ht] 
+\centering 
+\begin{tabular}{l r r r r l r r l} 
+
+\hline 
+ 
+ & \multicolumn{5}{c}{Logistic Regression}  & \multicolumn{3}{c}{Linear Probability Model} \\ 
+
+ \cmidrule(lr){2-6}\cmidrule(lr){7-9} 
+ & \multicolumn{2}{c}{Marginal Effects} & Estimate & Standard & Sig. & Estimate & Standard & Sig. \\ 
+
+ \cmidrule(lr){2-3} 
+ &   AME &  MER  &          &  Error   &      &          &  Error   &     \\ 
+
+\hline 
+ 
+\multicolumn{8}{l}{\textbf{Male Drivers} (5,335,033,221 observations)} \\ 
+
+\hline
+\multicolumn{8}{l}{Model without age-policy interaction: } \\ 
+Policy                   &  -7.1425        &  -22.2944       &  -0.0975        &  0.0012       &   **       &  -6.6281        &  0.0878       &   **       \\ 
+\hline
+\multicolumn{8}{l}{Model with age-policy interaction: } \\ 
+Policy                   &  56.8816        &  123.3946       &  0.6498        &  0.0061       &   **       &  61.4381        &  0.5020       &   **       \\ 
+Age 20-24 * policy   &  -71.1654        &  -117.7931       &  -0.8398        &  0.0070       &   **       &  -83.4947        &  0.6841       &   **       \\ 
+Age 25-34 * policy   &  -51.7117        &  -96.2500       &  -0.8039        &  0.0066       &   **       &  -76.4124        &  0.5623       &   **       \\ 
+Age 35-44 * policy   &  -40.1474        &  -81.9411       &  -0.7118        &  0.0067       &   **       &  -66.3821        &  0.5446       &   **       \\ 
+Age 45-54 * policy   &  -33.6454        &  -73.0523       &  -0.7652        &  0.0067       &   **       &  -69.5249        &  0.5324       &   **       \\ 
+Age 55-64 * policy   &  -26.3707        &  -61.1176       &  -0.7965        &  0.0070       &   **       &  -69.5371        &  0.5324       &   **       \\ 
+Age 65+ * policy   &  -16.5289        &  -41.9469       &  -0.8383        &  0.0077       &   **       &  -67.6630        &  0.5239       &   **       \\ 
+
+\hline 
+
+\multicolumn{8}{l}{\textbf{Female Drivers} (4,340,212,273 observations)} \\ 
+
+\hline
+\multicolumn{8}{l}{Model without age-policy interaction: } \\ 
+Policy                   &  -0.3228        &  -1.4298       &  -0.0096        &  0.0019       &   **       &  -0.1091        &  0.0626       &            \\ 
+\hline
+\multicolumn{8}{l}{Model with age-policy interaction: } \\ 
+Policy                   &  33.8856        &  112.1512       &  1.0095        &  0.0119       &   **       &  34.1187        &  0.3623       &   **       \\ 
+Age 20-24 * policy   &  -34.0900        &  -94.2341       &  -1.0155        &  0.0132       &   **       &  -32.8260        &  0.4723       &   **       \\ 
+Age 25-34 * policy   &  -29.3081        &  -83.3699       &  -1.0376        &  0.0125       &   **       &  -35.0249        &  0.4031       &   **       \\ 
+Age 35-44 * policy   &  -26.9346        &  -78.3640       &  -0.9870        &  0.0125       &   **       &  -32.8889        &  0.3960       &   **       \\ 
+Age 45-54 * policy   &  -19.7751        &  -61.9791       &  -1.0879        &  0.0126       &   **       &  -36.7189        &  0.3834       &   **       \\ 
+Age 55-64 * policy   &  -13.6587        &  -45.9474       &  -1.1334        &  0.0132       &   **       &  -36.9407        &  0.3818       &   **       \\ 
+Age 65+ * policy   &  -8.2386        &  -29.6056       &  -1.1784        &  0.0146       &   **       &  -36.3488        &  0.3782       &   **       \\ 
+
+\hline 
+
+\end{tabular} 
+\caption{Regressions for all offences} 
+For each regression, the dependent variable is an indicator that a driver has committed  
+any offence on a particular day.  
+All regressions contain age category and demerit point category controls, 
+as well as monthly and weekday indicator variables. 
+The baseline age category comprises drivers under the age of 16. 
+The heading ``Sig.'' is an abbreviation for statistical significance, with 
+the symbol * denoting statistical significance at the 0.1\% level 
+and ** the 0.001\% level. 
+Marginal effects, as well as linear probability model coefficients and standard errors, are  
+multiplied by 100,000.  
+The linear probability model uses heteroskedasticity-robust standard errors. 
+\label{tab:seas_Logit_vs_LPMx100K_regs} 
+\end{table} 
+ 
