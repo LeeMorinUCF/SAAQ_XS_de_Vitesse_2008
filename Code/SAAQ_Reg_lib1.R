@@ -559,8 +559,9 @@ saaq_data_prep <- function(saaq_data,
   } else if (pts_target == '9+') {
 
     # Nine point speeding violations and up (excluding the 10s and 14s above).
-    saaq_data[, 'events'] <- saaq_data[, 'points'] %in% c(9, 12, 15, 18, 21,
-                                                          24, 30, 36)
+    # saaq_data[, 'events'] <- saaq_data[, 'points'] %in% c(9, 12, 15, 18, 21,
+    #                                                       24, 30, 36)
+    saaq_data[, events := points %in% c(9, 12, 15, 18, 21, 24, 30, 36)]
 
   } else {
     stop(sprintf("Point balance target '%s' not recognized.", pts_target))

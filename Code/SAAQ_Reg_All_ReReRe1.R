@@ -70,19 +70,30 @@ data_in_path <- 'Data'
 
 # Set methodology for zero-ticket population count:
 # adj (unadjusted zero counts, intended for stacked join) or
-zero_count_method <- 'adj'
+# zero_count_method <- 'adj'
 # unadj (adjusted zero counts, intended for differenced join)
-# zero_count_method <- 'unadj'
+zero_count_method <- 'unadj'
 
 # Set join methodology:
 # all (stacked, intended for unadjusted zero counts) or
 # join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-join_method <- 'net'
+# join_method <- 'net'
+# Original join method, like 'all' but with balances
+# calculated in a way that accurately records the aging
+# of drivers throughout the sample.
+# This original version merges younger age categories.
+# join_method <- 'orig'
+# This original version keeps the same age categories.
+join_method <- 'orig_agg'
 
+# Split into testing and training samples?
+# train_test_split <- TRUE
+train_test_split <- FALSE
 
 # Set version of input files.
 # data_in_method <- 'all_unadj'
+# data_in_method <- 'orig_unadj'
 data_in_method <- sprintf('%s_%s', join_method, zero_count_method)
 
 
@@ -136,12 +147,24 @@ source(agg_reg_het_file)
 
 
 # Age group categories for defining factors.
+# Original, as in SAAQ driver counts:
 # age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
 #                     '55-64', '65-74', '75-84', '85-89', '90-199')
-# Coarser grouping to merge less-populated age groups:
-age_group_list <- c('0-19',
-                    '20-24', '25-34', '35-44', '45-54',
-                    '55-64', '65-199')
+if (join_method == 'orig_agg') {
+  orig_age_grp_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
+                      '55-64', '65-74', '75-84', '85-89', '90-199')
+  age_group_list <- c('0-15', '16-19', '20-24', '25-34', '35-44', '45-54',
+                      '55-64', '65-199')
+
+} else {
+  # Coarser grouping to merge less-populated age groups:
+  age_group_list <- c('0-19',
+                      '20-24', '25-34', '35-44', '45-54',
+                      '55-64', '65-199')
+  orig_age_grp_list <- age_grp_list
+
+}
+
 
 # Current points group categories for defining factors.
 curr_pts_grp_list <- c(seq(0,10), '11-20', '21-30', '31-150')
@@ -174,6 +197,13 @@ saaq_train <- fread(in_path_file_name)
 
 summary(saaq_train)
 
+# Rename date variable from original dataset.
+if (join_method == 'orig_agg') {
+  saaq_train[, date := dinf]
+  saaq_train[, dinf := NULL]
+}
+
+
 summary(saaq_train[, .N, by = date])
 head(saaq_train, 394)
 
@@ -181,6 +211,8 @@ head(saaq_train, 394)
 table(saaq_train[, sex], useNA = 'ifany')
 
 table(saaq_train[, age_grp], useNA = 'ifany')
+table(saaq_train[, sex],
+      saaq_train[, age_grp], useNA = 'ifany')
 
 table(saaq_train[, past_active], useNA = 'ifany')
 
@@ -209,53 +241,64 @@ nrow(saaq_train) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
 # Load Testing Dataset
 #-------------------------------------------------------------------------------
 
-# Dataset for out-of-sample model testing.
-in_path_file_name <- sprintf('%s/%s', data_in_path, test_file_name)
-saaq_test <- fread(in_path_file_name)
+# Testing only for later sensitivity.
+if (train_test_split | substr(join_method, 1, 4) != 'orig') {
 
-summary(saaq_test)
+  # Dataset for out-of-sample model testing.
+  in_path_file_name <- sprintf('%s/%s', data_in_path, test_file_name)
+  saaq_test <- fread(in_path_file_name)
 
-summary(saaq_test[, .N, by = date])
-head(saaq_test, 394)
+  summary(saaq_test)
 
-
-table(saaq_test[, sex], useNA = 'ifany')
-
-table(saaq_test[, age_grp], useNA = 'ifany')
-
-table(saaq_test[, past_active], useNA = 'ifany')
-
-table(saaq_test[, past_active], saaq_test[, sex], useNA = 'ifany')
-
-table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
+  summary(saaq_test[, .N, by = date])
+  head(saaq_test, 394)
 
 
+  table(saaq_test[, sex], useNA = 'ifany')
 
-length(unique(saaq_test[, date]))
-# [1] 1461 days of driving.
+  table(saaq_test[, age_grp], useNA = 'ifany')
 
-2*length(age_group_list)*2*length(curr_pts_grp_list)
-# [1] 392 combinations of categories per day.
+  table(saaq_test[, past_active], useNA = 'ifany')
 
-# Observations added with observed tickets.
-nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
+  table(saaq_test[, past_active], saaq_test[, sex], useNA = 'ifany')
+
+  table(saaq_test[, curr_pts_grp], saaq_test[, past_active], useNA = 'ifany')
 
 
-# Tabulate the points, which are the events to be predicted.
-# saaq_test[date >= sample_beg & date <= sample_end,
-#           sum(as.numeric(num)), by = points][order(points)]
 
+  length(unique(saaq_test[, date]))
+  # [1] 1461 days of driving.
+
+  2*length(age_group_list)*2*length(curr_pts_grp_list)
+  # [1] 392 combinations of categories per day.
+
+  # Observations added with observed tickets.
+  nrow(saaq_test) - 2*length(age_group_list)*2*length(curr_pts_grp_list)*1826
+
+
+  # Tabulate the points, which are the events to be predicted.
+  # saaq_test[date >= sample_beg & date <= sample_end,
+  #           sum(as.numeric(num)), by = points][order(points)]
+
+}
 
 ################################################################################
 # Stack the datasets and label by sample
 ################################################################################
 
 saaq_train[, sample := 'train']
-saaq_test[, sample := 'test']
-saaq_data <- rbind(saaq_train, saaq_test)
+# Testing only for later sensitivity.
+if (train_test_split | substr(join_method, 1, 4) != 'orig') {
 
-rm(saaq_train, saaq_test)
+  saaq_test[, sample := 'test']
+  saaq_data <- rbind(saaq_train, saaq_test)
 
+  rm(saaq_train, saaq_test)
+
+} else {
+  saaq_data <- saaq_train
+  rm(saaq_train)
+}
 
 
 
@@ -273,8 +316,12 @@ sapply(saaq_data, class)
 
 # Define categorical variables as factors.
 saaq_data[, sex := factor(sex, levels = c('M', 'F'))]
-saaq_data[, age_grp := factor(age_grp, levels = age_group_list)]
+table(saaq_data[, sex], useNA = "ifany")
+saaq_data[, age_grp := factor(age_grp, levels = orig_age_grp_list)]
+table(saaq_data[, age_grp], useNA = "ifany")
+saaq_data[curr_pts_grp == '30-150', curr_pts_grp := '31-150']
 saaq_data[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
+table(saaq_data[, curr_pts_grp], useNA = "ifany")
 
 # Define new variables for seasonality.
 # Numeric indicator for month.
@@ -283,12 +330,12 @@ saaq_data[, month := substr(date, 6, 7)]
 month_list <- unique(saaq_data[, month])
 month_list <- month_list[order(month_list)]
 saaq_data[, month := factor(month, levels = month_list)]
-table(saaq_data[, 'month'], useNA = "ifany")
+table(saaq_data[, month], useNA = "ifany")
 
 # Weekday indicator.
 saaq_data[, weekday := weekdays(date)]
 saaq_data[, weekday := factor(weekday, levels = weekday_list)]
-table(saaq_data[, 'weekday'], useNA = "ifany")
+table(saaq_data[, weekday], useNA = "ifany")
 
 # Define the indicator for the policy change.
 saaq_data[, policy := date >= april_fools_date]
@@ -303,30 +350,38 @@ summary(saaq_data)
 #--------------------------------------------------------------------------------
 # Age groups.
 #--------------------------------------------------------------------------------
-table(saaq_data[, 'age_grp'], useNA = 'ifany')
+table(saaq_data[, age_grp], useNA = 'ifany')
 
-# Age groups already consolidated in data prep.
-class(saaq_data[, age_grp])
-age_grp_list <- levels(saaq_data[, age_grp])
+if (join_method == 'orig_agg') {
+  # For original dataset, consolidate age group categories.
+  # age_grp_list <- levels(saaq_data[, 'age_grp'])
+  # orig_age_grp_list <- unique(saaq_data[, 'age_grp'])
+  saaq_data[, age_grp_orig := age_grp]
+  age_grp_list <- c(orig_age_grp_list[seq(7)], '65-199')
+
+  saaq_data[, 'age_grp'] <- as.factor(NA)
+  # levels(saaq_data[, 'age_grp']) <- age_grp_list
+  # age_group_sel <- saaq_data[, 'age_grp_orig'] %in% orig_age_grp_list[seq(7)]
+  # saaq_data[age_group_sel, 'age_grp'] <- saaq_data[age_group_sel, 'age_grp_orig']
+  # saaq_data[!age_group_sel, 'age_grp'] <- age_grp_list[8]
+  saaq_data[, age_group_sel := age_grp_orig %in% orig_age_grp_list[seq(7)]]
+  saaq_data[age_group_sel == TRUE, age_grp := age_grp_orig]
+  saaq_data[age_group_sel == FALSE, age_grp := age_grp_list[8]]
+  saaq_data[, age_grp := factor(age_grp, levels = age_grp_list)]
 
 
-# Otherwise, consolidate age group categories.
-# age_grp_list <- levels(saaq_data[, 'age_grp'])
-# orig_age_grp_list <- unique(saaq_data[, 'age_grp'])
-# saaq_data[, 'age_grp_orig'] <- saaq_data[, 'age_grp']
-# age_grp_list <- c(orig_age_grp_list[seq(7)], '65-199')
-#
-# saaq_data[, 'age_grp'] <- as.factor(NA)
-# levels(saaq_data[, 'age_grp']) <- age_grp_list
-# age_group_sel <- saaq_data[, 'age_grp_orig'] %in% orig_age_grp_list[seq(7)]
-# saaq_data[age_group_sel, 'age_grp'] <- saaq_data[age_group_sel, 'age_grp_orig']
-# saaq_data[!age_group_sel, 'age_grp'] <- age_grp_list[8]
-#
-#
-# # Trust but verify.
-# table(saaq_data[, 'age_grp'],
-#       saaq_data[, 'age_grp_orig'], useNA = 'ifany')
-# # Check.
+  # Trust but verify.
+  table(saaq_data[, age_grp],
+        saaq_data[, age_grp_orig], useNA = 'ifany')
+  # Check.
+
+} else {
+  # Otherwise, age groups already consolidated in data prep.
+  class(saaq_data[, age_grp])
+  age_grp_list <- levels(saaq_data[, age_grp])
+
+}
+
 #--------------------------------------------------------------------------------
 
 
@@ -340,7 +395,7 @@ table(saaq_data[, 'curr_pts_grp'], useNA = 'ifany')
 
 # Consolidate categories of current points balances.
 # curr_pts_grp_list <- levels(saaq_data[, 'curr_pts_grp'])
-saaq_data[, 'curr_pts_grp_orig'] <- saaq_data[, 'curr_pts_grp']
+saaq_data[, curr_pts_grp_orig := curr_pts_grp]
 new_curr_pts_grp_list <- c('0', '1-3', '4-6', '7-9', '10-150')
 
 # Create the new factor.
@@ -367,7 +422,7 @@ saaq_data[curr_pts_grp_sel == TRUE, curr_pts_grp := new_curr_pts_grp_list[5]]
 # Reset levels of new curr_pts_grp factor.
 saaq_data[, curr_pts_grp := factor(curr_pts_grp,
                                    levels = new_curr_pts_grp_list)]
-table(saaq_data[, 'curr_pts_grp'], useNA = 'ifany')
+table(saaq_data[, curr_pts_grp], useNA = 'ifany')
 
 
 # Trust but verify.
@@ -380,11 +435,11 @@ table(saaq_data[, curr_pts_grp],
 #--------------------------------------------------------------------------------
 # Current point balances for detailed regression by demerit point balance.
 #--------------------------------------------------------------------------------
-table(saaq_data[, 'curr_pts_grp'], useNA = 'ifany')
+table(saaq_data[, curr_pts_grp], useNA = 'ifany')
 
 # Consolidate categories of current points balances.
 # curr_pts_grp_list <- levels(saaq_data[, 'curr_pts_grp'])
-saaq_data[, 'curr_pts_reg'] <- saaq_data[, 'curr_pts_grp']
+saaq_data[, curr_pts_reg := curr_pts_grp]
 curr_pts_reg_list <- c(as.character(seq(0,9)), '10-150')
 
 # Create the new factor.
@@ -402,7 +457,7 @@ saaq_data[curr_pts_grp_sel == TRUE, curr_pts_reg := curr_pts_reg_list[11]]
 # Reset levels of new curr_pts_reg factor.
 saaq_data[, curr_pts_reg := factor(curr_pts_reg,
                                    levels = curr_pts_reg_list)]
-table(saaq_data[, 'curr_pts_reg'], useNA = 'ifany')
+table(saaq_data[, curr_pts_reg], useNA = 'ifany')
 
 
 # Trust but verify.
@@ -484,8 +539,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: All Drivers with Monthly and weekday seasonality
-# spec_group <- 'all'
-# estn_version <- 12
+spec_group <- 'all'
+estn_version <- 12
 #------------------------------------------------------------
 
 #------------------------------------------------------------
@@ -509,8 +564,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: Plot by demerit point groups
-spec_group <- 'points'
-estn_version <- 16
+# spec_group <- 'points'
+# estn_version <- 16
 #------------------------------------------------------------
 
 
@@ -570,7 +625,8 @@ md_path_last <- "empty"
 # Sample block of code for inserting after data prep.
 # estn_num <- 1
 # estn_num <- 2
-# estn_num <- 10
+# estn_num <- 11
+# estn_num <- 18
 # estn_num <- 91
 # model_list[estn_num, ]
 # for (estn_num in 20:nrow(model_list)) {
