@@ -319,6 +319,13 @@ saaq_data[, sex := factor(sex, levels = c('M', 'F'))]
 table(saaq_data[, sex], useNA = "ifany")
 saaq_data[, age_grp := factor(age_grp, levels = orig_age_grp_list)]
 table(saaq_data[, age_grp], useNA = "ifany")
+# Digression to investigate number of drivers by age group.
+saaq_data[, .N, by = 'age_grp']
+saaq_data[, sum(num), by = 'age_grp']
+num_dates <- length(unique(saaq_data[, date]))
+saaq_data[, .N/num_dates, by = 'age_grp']
+saaq_data[, sum(num)/num_dates, by = 'age_grp']
+# Digression over.
 saaq_data[curr_pts_grp == '30-150', curr_pts_grp := '31-150']
 saaq_data[, curr_pts_grp := factor(curr_pts_grp, levels = curr_pts_grp_list)]
 table(saaq_data[, curr_pts_grp], useNA = "ifany")
@@ -539,8 +546,8 @@ pts_headings[8, 'heading'] <- 'All pairs of infractions 9 or over (speeding 81 o
 
 #------------------------------------------------------------
 # Specification: All Drivers with Monthly and weekday seasonality
-spec_group <- 'all'
-estn_version <- 12
+# spec_group <- 'all'
+# estn_version <- 12
 #------------------------------------------------------------
 
 #------------------------------------------------------------
@@ -564,8 +571,8 @@ estn_version <- 12
 
 #------------------------------------------------------------
 # Specification: Plot by demerit point groups
-# spec_group <- 'points'
-# estn_version <- 16
+spec_group <- 'points'
+estn_version <- 16
 #------------------------------------------------------------
 
 

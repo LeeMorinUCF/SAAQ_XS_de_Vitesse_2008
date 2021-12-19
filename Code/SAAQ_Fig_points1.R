@@ -63,7 +63,14 @@ zero_count_method <- 'adj'
 # all (stacked, intended for unadjusted zero counts) or
 # join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-join_method <- 'net'
+# join_method <- 'net'
+# Original join method, like 'all' but with balances
+# calculated in a way that accurately records the aging
+# of drivers throughout the sample.
+# This original version merges younger age categories.
+# join_method <- 'orig'
+# This original version keeps the same age categories.
+join_method <- 'orig_agg'
 
 
 # Set version of input files.
@@ -419,9 +426,11 @@ abline(h = 0,
 grey_scale <- grey.colors(n = 12, start = 0.0, end = 0.9,
                           gamma = 2.2, rev = FALSE)
 col_no_age_M <- grey_scale[1]
-col_w_age_M <- grey_scale[6]
-col_no_age_F <- grey_scale[3]
+col_w_age_M <- grey_scale[3]
+# col_w_age_M <- grey_scale[1]
+col_no_age_F <- grey_scale[6]
 col_w_age_F <- grey_scale[8]
+# col_w_age_F <- grey_scale[6]
 
 
 #------------------------------------------------------------

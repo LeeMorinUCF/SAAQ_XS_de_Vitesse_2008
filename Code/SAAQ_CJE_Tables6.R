@@ -69,7 +69,14 @@ zero_count_method <- 'unadj'
 # all (stacked, intended for unadjusted zero counts) or
 # join_method <- 'all'
 # net (differenced, intended for adjusted zero counts)
-join_method <- 'net'
+# join_method <- 'net'
+# Original join method, like 'all' but with balances
+# calculated in a way that accurately records the aging
+# of drivers throughout the sample.
+# This original version merges younger age categories.
+# join_method <- 'orig'
+# This original version keeps the same age categories.
+join_method <- 'orig_agg'
 
 
 # Set version of input files.
@@ -201,18 +208,41 @@ age_grp_list <- substr(age_grp_list, 8, nchar(age_grp_list))
 
 
 # Create list of labels for policy*age interactions.
-age_group_list <- c('0-19',
-                    '20-24', '25-34', '35-44', '45-54',
-                    '55-64', '65-199')
-age_int_var_list <- sprintf('policyTRUE:age_grp%s', age_group_list)
-age_int_label_list <- data.frame(Variable = age_int_var_list,
-                                 Label = c('Age 16-19 * policy',
-                                           'Age 20-24 * policy',
-                                           'Age 25-34 * policy',
-                                           'Age 35-44 * policy',
-                                           'Age 45-54 * policy',
-                                           'Age 55-64 * policy',
-                                           'Age 65+ * policy'))
+if (join_method == 'orig_agg') {
+  age_group_list <- c('0-15', '16-19',
+                      '20-24', '25-34', '35-44', '45-54',
+                      '55-64', '65-199')
+  age_int_var_list <- sprintf('policyTRUE:age_grp%s', age_group_list)
+  age_int_label_list <- data.frame(Variable = age_int_var_list,
+                                   Label = c('Age 0-15 * policy',
+                                             'Age 16-19 * policy',
+                                             'Age 20-24 * policy',
+                                             'Age 25-34 * policy',
+                                             'Age 35-44 * policy',
+                                             'Age 45-54 * policy',
+                                             'Age 55-64 * policy',
+                                             'Age 65+ * policy'))
+
+
+} else {
+  # Coarser grouping to merge less-populated age groups:
+  age_group_list <- c('0-19',
+                      '20-24', '25-34', '35-44', '45-54',
+                      '55-64', '65-199')
+  age_int_var_list <- sprintf('policyTRUE:age_grp%s', age_group_list)
+  age_int_label_list <- data.frame(Variable = age_int_var_list,
+                                   Label = c('Age 16-19 * policy',
+                                             'Age 20-24 * policy',
+                                             'Age 25-34 * policy',
+                                             'Age 35-44 * policy',
+                                             'Age 45-54 * policy',
+                                             'Age 55-64 * policy',
+                                             'Age 65+ * policy'))
+
+
+}
+
+
 
 
 # Create list of labels for indicators by point value for the dependent variable.
